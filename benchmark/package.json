@@ -1,0 +1,15 @@
+{
+  "name": "bswap-benchmarks",
+  "version": "0.0.0",
+  "description": "benchmarking for bswap",
+  "devDependencies": {
+    "benchmark": "^2.1.0"
+  },
+  "optionalDependencies": {
+    "endian-toggle": "0.0.0",
+    "network-byte-order": "^0.2.0"
+  },
+  "dependencies": {
+    "chalk": "^1.1.3"
+  }
+}
