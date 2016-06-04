@@ -1,6 +1,6 @@
 {
   "name": "bswap",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "description": "fast byte swapping",
   "main": "bswap.js",
   "scripts": {
