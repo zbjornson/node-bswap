@@ -119,9 +119,9 @@ you're processing small arrays, it is available as `bswap.js(arr)`.
 | Library | Operand | In-Place | 64-bit Type Support | Browser | Speed (vs bswap)* |
 | --- | --- | --- | --- | --- | --- |
 | bswap (this) | TypedArray | yes | yes | yes | 1.00 |
-| node [`buffer.swap16/32/64`](https://nodejs.org/api/buffer.html#buffer_buf_swap16) | Buffer | yes | since 6.3.0 | no | 0.11 |
-| [endian-toggle](https://github.com/substack/endian-toggle) | Buffer | no | yes | no | 0.02 |
-| [network-byte-order](https://github.com/mattcg/network-byte-order) | Number/\[Octet\] | no | no | yes | 0.02 |
+| node [`buffer.swap16/32/64`](https://nodejs.org/api/buffer.html#buffer_buf_swap16) | Buffer | yes | since 6.3.0 | no | 0.14 |
+| [endian-toggle](https://github.com/substack/endian-toggle) | Buffer | no | yes | no | 0.03 |
+| [network-byte-order](https://github.com/mattcg/network-byte-order) | Number/\[Octet\] | no | no | yes | 0.009 |
 
 \* Higher is better. For 16-bit types, 10k-element arrays.
 
