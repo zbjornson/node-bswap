@@ -41,7 +41,6 @@ var methods = [
 	{label: "js", fn: bswap.js}
 ];
 
-
 try {
 	var nbo = require("network-byte-order");
 	var fn = function (typedArray) {
@@ -86,14 +85,13 @@ try {
 		switch (typedArray.BYTES_PER_ELEMENT) {
 			case 2: return Buffer.from(typedArray.buffer).swap16();
 			case 4: return Buffer.from(typedArray.buffer).swap32();
-			case 8: return;
+			case 8: return Buffer.from(typedArray.buffer).swap64();
 		}
 	};
 	methods.push({label: "node", fn: fn});
 } catch (ex) {
 	console.log("Buffer not available in browser, skipping");
 }
-
 
 for (var s = 0; s < byteSizes.length; s++) {
 	var byteSize = byteSizes[s];
@@ -124,7 +122,6 @@ for (var s = 0; s < byteSizes.length; s++) {
 			var method = methods[m];
 
 			if (byteSize.label === "64 bit" && method.label === "nbo") continue;
-			if (byteSize.label === "64 bit" && method.label === "node") continue;
 
 			new Benchmark.Suite()
 				.add({

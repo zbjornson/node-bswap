@@ -5,7 +5,8 @@
       "sources": [ "src/bswap.cc" ],
       "include_dirs" : [
           "<!(node -e \"require('nan')\")"
-      ]
+      ],
+      "cflags":[ "-march=native" ]
     }
   ]
 }

@@ -1,73 +1,70 @@
 #include <nan.h>
 
-#if defined(__GNUC__) || defined(__clang__)
+using namespace v8;
+
+// GCC/clang: __builtin_bswapN emits MOVBE, but does not vectorize the loop,
+// so we have to do it by hand.
+//
+// MSVC: _byteswap_ushort and friends emits PSHUFB, but MOVDQU. This variant
+// emits MOVDQA. Overall it's about 20% faster. (Doubt it's MOVDQU vs MOVDQA
+// alone that's responsible given that MOVDQU is generally the same as MOVDQA
+// for aligned data.)
+
+#if defined(__GNUC__) // GCC, clang
+typedef char v16qi __attribute__((vector_size(16)));
+#define pshufb128 __builtin_ia32_pshufb128
 #define BSWAP_INTRINSIC_2(x) __builtin_bswap16(x)
 #define BSWAP_INTRINSIC_4(x) __builtin_bswap32(x)
 #define BSWAP_INTRINSIC_8(x) __builtin_bswap64(x)
-#elif defined(__linux__)
-#include <byteswap.h>
-#define BSWAP_INTRINSIC_2(x) bswap_16(x)
-#define BSWAP_INTRINSIC_4(x) bswap_32(x)
-#define BSWAP_INTRINSIC_8(x) bswap_64(x)
+
 #elif defined(_MSC_VER)
+typedef __m128i v16qi;
+#define pshufb128 _mm_shuffle_epi8
 #include <intrin.h>
 #define BSWAP_INTRINSIC_2(x) _byteswap_ushort(x);
 #define BSWAP_INTRINSIC_4(x) _byteswap_ulong(x);
 #define BSWAP_INTRINSIC_8(x) _byteswap_uint64(x);
-#else
-#define BSWAP_INTRINSIC_2(x) (x << 8) | (x >> 8)
-#define BSWAP_INTRINSIC_4(x)                                                  \
-  ((x & 0xFF) << 24) |                                                        \
-  ((x & 0xFF00) << 8) |                                                       \
-  ((x >> 8) & 0xFF00) |                                                       \
-  ((x >> 24) & 0xFF)
-#define BSWAP_INTRINSIC_8(x)                                                  \
-  ((x & 0xFF00000000000000ull) >> 56) |                                       \
-  ((x & 0x00FF000000000000ull) >> 40) |                                       \
-  ((x & 0x0000FF0000000000ull) >> 24) |                                       \
-  ((x & 0x000000FF00000000ull) >> 8)  |                                       \
-  ((x & 0x00000000FF000000ull) << 8)  |                                       \
-  ((x & 0x0000000000FF0000ull) << 24) |                                       \
-  ((x & 0x000000000000FF00ull) << 40) |                                       \
-  ((x & 0x00000000000000FFull) << 56)
+
 #endif
 
-using namespace v8;
+static v16qi shuf16 = { 1,0, 3,2, 5,4, 7,6, 9,8, 11,10, 13,12, 15,14 };
+static v16qi shuf32 = { 3,2,1,0, 7,6,5,4, 11,10,9,8, 15,14,13,12 };
+static v16qi shuf64 = { 7,6,5,4,3,2,1,0, 15,14,13,12,11,10,9,8 };
 
-void flip16(Local<TypedArray> in) {
-  Nan::TypedArrayContents<uint16_t> events(in);
-  size_t eventsLength = in->Length();
-  for (size_t i = 0; i < eventsLength; i++) {
-    (*events)[i] = BSWAP_INTRINSIC_2((*events)[i]);
-  }
+#define IOPT_SHUFF(n, t, mask, intrin, b)                                     \
+void n(Local<TypedArray> in) {                                                \
+  Nan::TypedArrayContents<t> events(in);                                      \
+  char* bytes = reinterpret_cast<char*>((*events));                           \
+  size_t length = in->ByteLength();                                           \
+  size_t vlength = length - length % 16;                                      \
+  size_t i;                                                                   \
+  for (i = 0; i < vlength; i+= 16) {                                          \
+    v16qi vec = *(v16qi*)&bytes[i];                                           \
+    vec = pshufb128(vec, mask);                                               \
+    *(v16qi*)(bytes + i) = vec;                                               \
+  }                                                                           \
+  size_t vlengthB = vlength / b;                                              \
+  size_t lengthB = length / b;                                                \
+  for ( ; i < lengthB; i++) {                                                 \
+    size_t vlengthBI = vlengthB + i;                                          \
+    (*events)[vlengthBI] = intrin((*events)[vlengthBI]);                      \
+  }                                                                           \
 }
 
-void flip32(Local<TypedArray> in) {
-  Nan::TypedArrayContents<uint32_t> events(in);
-  size_t eventsLength = in->Length();
-  for (size_t i = 0; i < eventsLength; i++) {
-    (*events)[i] = BSWAP_INTRINSIC_4((*events)[i]);
-  }
-}
-
-void flip64(Local<TypedArray> in) {
-  Nan::TypedArrayContents<uint64_t> events(in);
-  size_t eventsLength = in->Length();
-
-  for (size_t i = 0; i < eventsLength; i++) {
-    (*events)[i] = BSWAP_INTRINSIC_8((*events)[i]);
-  }
-}
+IOPT_SHUFF(flip16, uint16_t, shuf16, BSWAP_INTRINSIC_2, 2)
+IOPT_SHUFF(flip32, uint32_t, shuf32, BSWAP_INTRINSIC_4, 4)
+IOPT_SHUFF(flip64, uint64_t, shuf64, BSWAP_INTRINSIC_8, 8)
 
 NAN_METHOD(flipBytes) {
-  if (info[0]->IsInt8Array() || info[0]->IsUint8Array() || info[0]->IsUint8ClampedArray()) {
+  Local<Value> arr = info[0];
+  if (arr->IsInt16Array() || arr->IsUint16Array()) {
+    flip16(arr.As<TypedArray>());
+  } else if (arr->IsFloat32Array() || arr->IsInt32Array() || arr->IsUint32Array()) {
+    flip32(arr.As<TypedArray>());
+  } else if (arr->IsFloat64Array()) {
+    flip64(arr.As<TypedArray>());
+  } else if (arr->IsInt8Array() || arr->IsUint8Array() || arr->IsUint8ClampedArray()) {
     // noop
-  } else if (info[0]->IsInt16Array() || info[0]->IsUint16Array()) {
-    flip16(info[0].As<TypedArray>());
-  } else if (info[0]->IsFloat32Array() || info[0]->IsInt32Array() || info[0]->IsUint32Array()) {
-    flip32(info[0].As<TypedArray>());
-  } else if (info[0]->IsFloat64Array()) {
-    flip64(info[0].As<TypedArray>());
   } else {
     Nan::ThrowTypeError("Expected typed array");
   }
