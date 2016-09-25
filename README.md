@@ -30,7 +30,7 @@ Use (browser):
 ```
 
 In node.js when native code is available, this library uses x86 SIMD
-instructions ([PSHUFB (SSE3) and VPSHUFB (AVX)](http://www.felixcloutier.com/x86/PSHUFB.html)),
+instructions ([PSHUFB (SSSE3) and VPSHUFB (AVX)](http://www.felixcloutier.com/x86/PSHUFB.html)),
 which allow processing multiple array elements simultaneously for maximum
 speed.
 
