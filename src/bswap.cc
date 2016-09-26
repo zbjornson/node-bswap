@@ -9,6 +9,7 @@ using namespace v8;
 // about 20% faster.
 
 #if defined(__GNUC__) // GCC, clang
+#include <x86intrin.h>
 typedef char v16qi __attribute__((vector_size(16)));
 #define pshufb128 __builtin_ia32_pshufb128
 #define BSWAP_INTRINSIC_2(x) __builtin_bswap16(x)
@@ -16,9 +17,10 @@ typedef char v16qi __attribute__((vector_size(16)));
 #define BSWAP_INTRINSIC_8(x) __builtin_bswap64(x)
 
 #elif defined(_MSC_VER)
+#include <intrin.h>
+#include <wmmintrin.h>
 typedef __m128i v16qi;
 #define pshufb128 _mm_shuffle_epi8
-#include <intrin.h>
 #define BSWAP_INTRINSIC_2(x) _byteswap_ushort(x);
 #define BSWAP_INTRINSIC_4(x) _byteswap_ulong(x);
 #define BSWAP_INTRINSIC_8(x) _byteswap_uint64(x);
