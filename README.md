@@ -1,4 +1,6 @@
 [![CircleCI](https://circleci.com/gh/zbjornson/node-bswap.svg?style=svg)](https://circleci.com/gh/zbjornson/node-bswap)
+[![Build status](https://ci.appveyor.com/api/projects/status/ddnemfveens34b12/branch/master?svg=true)](https://ci.appveyor.com/project/zbjornson/node-bswap/branch/master)
+
 
 # node-bswap
 
