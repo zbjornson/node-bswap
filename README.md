@@ -1,3 +1,5 @@
+[![CircleCI](https://circleci.com/gh/zbjornson/node-bswap.svg?style=svg)](https://circleci.com/gh/zbjornson/node-bswap)
+
 # node-bswap
 
 A function to quickly swap bytes (a.k.a. reverse the byte ordering, change
