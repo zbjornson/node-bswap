@@ -6,7 +6,7 @@
       "include_dirs" : [
           "<!(node -e \"require('nan')\")"
       ],
-      "cflags":[ "-march=native" ]
+      "cflags":[ "-march=native", "-flax-vector-conversions" ]
     }
   ]
 }

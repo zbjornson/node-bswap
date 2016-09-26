@@ -3,50 +3,63 @@ var bswap = require("../bswap.js");
 var bswapFn;
 
 var tests = [
-	{label: "Flips an Int16Array", test: function () {
-		var x = new Uint8Array([4, 210, 7, 9]);
-		var expect = new Uint8Array([210, 4, 9, 7]);
-		var y = new Int16Array(x.buffer, x.byteOffset, 2);
+	{label: "Flips Int16Array", test: function () {
+		var x = new Uint32Array(258).fill(0x04030201);
+		var expect = new Uint32Array(258).fill(0x03040102);
+		var y = new Int16Array(x.buffer, x.byteOffset, 516);
 		bswapFn(y);
 		assert.deepEqual(x, expect);
 	}},
 
-	{label: "Flips a Uint16Array", test: function () {
-		var x = new Uint8Array([4, 210, 7, 9]);
-		var expect = new Uint8Array([210, 4, 9, 7]);
-		var y = new Uint16Array(x.buffer, x.byteOffset, 2);
+	{label: "Flips Uint16Array", test: function () {
+		var x = new Uint32Array(258).fill(0x04030201);
+		var expect = new Uint32Array(258).fill(0x03040102);
+		var y = new Uint16Array(x.buffer, x.byteOffset, 516);
 		bswapFn(y);
 		assert.deepEqual(x, expect);
 	}},
 
-	{label: "Flips a Float32Array", test: function () {
-		var x = new Uint8Array([4, 210, 7, 9]);
-		var expect = new Uint8Array([9, 7, 210, 4]);
-		var y = new Float32Array(x.buffer, x.byteOffset, 1);
+	{label: "Flips Float32Array", test: function () {
+		var x = new Uint32Array(258).fill(0x04030201);
+		var expect = new Uint32Array(258).fill(0x01020304);
+		var y = new Float32Array(x.buffer, x.byteOffset, 258);
 		bswapFn(y);
 		assert.deepEqual(x, expect);
 	}},
 
-	{label: "Flips an Int32Array", test: function () {
-		var x = new Uint8Array([4, 210, 7, 9]);
-		var expect = new Uint8Array([9, 7, 210, 4]);
-		var y = new Int32Array(x.buffer, x.byteOffset, 1);
+	{label: "Flips Float32Array (unaligned)", test: function () {
+		var x = new Uint32Array(258).fill(0x04030201);
+		var expect = new Uint32Array(258).fill(0x04030201);
+		var temp = new Uint32Array(expect.buffer, expect.byteOffset + 4, 257).fill(0x01020304);
+		var y = new Float32Array(x.buffer, x.byteOffset + 4, 257);
 		bswapFn(y);
 		assert.deepEqual(x, expect);
 	}},
 
-	{label: "Flips a Uint32Array", test: function () {
-		var x = new Uint8Array([4, 210, 7, 9]);
-		var expect = new Uint8Array([9, 7, 210, 4]);
-		var y = new Uint32Array(x.buffer, x.byteOffset, 1);
+	{label: "Flips Int32Array", test: function () {
+		var x = new Uint32Array(258).fill(0x04030201);
+		var expect = new Uint32Array(258).fill(0x01020304);
+		var y = new Int32Array(x.buffer, x.byteOffset, 258);
 		bswapFn(y);
 		assert.deepEqual(x, expect);
 	}},
 
-	{label: "Flips a Float64Array", test: function () {
-		var x = new Uint8Array([4, 210, 7, 9, 11, 63, 81, 12]);
-		var expect = new Uint8Array([12, 81, 63, 11, 9, 7, 210, 4]);
-		var y = new Float64Array(x.buffer, x.byteOffset, 1);
+	{label: "Flips Uint32Array", test: function () {
+		var x = new Uint32Array(258).fill(0x04030201);
+		var expect = new Uint32Array(258).fill(0x01020304);
+		var y = new Uint32Array(x.buffer, x.byteOffset, 258);
+		bswapFn(y);
+		assert.deepEqual(x, expect);
+	}},
+
+	{label: "Flips Float64Array", test: function () {
+		var x = new Uint8Array(256 * 8);
+		var expect = new Uint8Array(256 * 8);
+		for (var i = 0; i < x.length; i++) {
+			x[i] = i % 8;
+			expect[expect.length - i - 1] = i % 8;
+		}
+		var y = new Float64Array(x.buffer, x.byteOffset, 256);
 		bswapFn(y);
 		assert.deepEqual(x, expect);
 	}},

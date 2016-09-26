@@ -5,10 +5,8 @@ using namespace v8;
 // GCC/clang: __builtin_bswapN emits MOVBE, but does not vectorize the loop,
 // so we have to do it by hand.
 //
-// MSVC: _byteswap_ushort and friends emits PSHUFB, but MOVDQU. This variant
-// emits MOVDQA. Overall it's about 20% faster. (Doubt it's MOVDQU vs MOVDQA
-// alone that's responsible given that MOVDQU is generally the same as MOVDQA
-// for aligned data.)
+// MSVC: _byteswap_ushort and friends emits PSHUFB, but this version is still
+// about 20% faster.
 
 #if defined(__GNUC__) // GCC, clang
 typedef char v16qi __attribute__((vector_size(16)));
@@ -31,23 +29,22 @@ static v16qi shuf16 = { 1,0, 3,2, 5,4, 7,6, 9,8, 11,10, 13,12, 15,14 };
 static v16qi shuf32 = { 3,2,1,0, 7,6,5,4, 11,10,9,8, 15,14,13,12 };
 static v16qi shuf64 = { 7,6,5,4,3,2,1,0, 15,14,13,12,11,10,9,8 };
 
-#define IOPT_SHUFF(n, t, mask, intrin, b)                                     \
+#define IOPT_SHUFF(n, t, mask, intrin, bytes_per_element)                     \
 void n(Local<TypedArray> in) {                                                \
   Nan::TypedArrayContents<t> events(in);                                      \
   char* bytes = reinterpret_cast<char*>((*events));                           \
-  size_t length = in->ByteLength();                                           \
-  size_t vlength = length - length % 16;                                      \
-  size_t i;                                                                   \
-  for (i = 0; i < vlength; i+= 16) {                                          \
-    v16qi vec = *(v16qi*)&bytes[i];                                           \
+  size_t byteLength = in->ByteLength();                                       \
+  size_t tailLength = byteLength % 16;                                        \
+  size_t vectLength = byteLength - tailLength;                                \
+  for (size_t i = 0; i < vectLength; i += 16) {                               \
+    v16qi vec = _mm_loadu_si128((__m128i*)&bytes[i]);                         \
     vec = pshufb128(vec, mask);                                               \
-    *(v16qi*)(bytes + i) = vec;                                               \
+    _mm_storeu_si128((__m128i*)(&bytes[i]), vec);                             \
   }                                                                           \
-  size_t vlengthB = vlength / b;                                              \
-  size_t lengthB = length / b;                                                \
-  for ( ; i < lengthB; i++) {                                                 \
-    size_t vlengthBI = vlengthB + i;                                          \
-    (*events)[vlengthBI] = intrin((*events)[vlengthBI]);                      \
+  size_t tailStart = vectLength / bytes_per_element;                          \
+  size_t tailEnd = byteLength / bytes_per_element;                            \
+  for (size_t i = tailStart; i < tailEnd; i++) {                              \
+    (*events)[i] = intrin((*events)[i]);                                      \
   }                                                                           \
 }
 
