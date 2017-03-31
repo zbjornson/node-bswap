@@ -7,7 +7,7 @@
 A function to quickly swap bytes (a.k.a. reverse the byte ordering, change
 endianness) of typed arrays in-place for node.js and browsers. Works with all
 of the typed array types. For node.js 4.x and later, this also works on
-Buffers.
+Buffers if you construct a TypedArray view on the underlying array buffer (see below).
 
 Install:
 ```
@@ -21,6 +21,12 @@ Use (node.js):
 > bswap(x);
 > x
 Uint16Array [ 256, 512, 768, 1024, 1280, 1536, 1792, 2048 ]
+
+// With buffers:
+> var b = Buffer.alloc(128);
+// This constructs a "view" on the same memory; it does not allocate new memory:
+> var ui32 = new Uint32Array(b.buffer, b.byteOffset, b.byteLength / Uint32Array.BYTES_PER_ELEMENT);
+> bswap(ui32);
 ```
 
 Use (browser):
@@ -33,17 +39,19 @@ Use (browser):
 </script>
 ```
 
-In node.js when native code is available, this library uses x86 SIMD
-instructions ([PSHUFB (SSSE3) and VPSHUFB (AVX)](http://www.felixcloutier.com/x86/PSHUFB.html)),
-which allow processing multiple array elements simultaneously for maximum
-speed.
+In node.js when native code and an x86 processor is available, this library uses
+x86 SIMD instructions ([PSHUFB (SSSE3) and VPSHUFB (AVX2)](http://www.felixcloutier.com/x86/PSHUFB.html)),
+which allow processing multiple array elements simultaneously for maximum speed.
 
-Tested with MSVC 2015, GCC 4.4.7 - 7.0.0 and clang 3.4.1 - 3.9.0. Clang <3.4.0
-is not supported.
+Native code requires:
+* MSVC 2015 or later
+* Clang 3.4.x or later
+* GCC 4.8.x or later
+* ICC 16 or later
 
 In the browser or when native code is unavailable, this library falls back to
 a fast, pure javascript implementation. The javascript implementation is also
-always available:
+always explicitly available:
 
 ```js
 > var bswap = require("bswap").js; // Use javascript implementation explicitly
@@ -54,63 +62,63 @@ always available:
 Showing elements processed per second for varying array sizes.
 
 ##### Windows + Microsoft Visual Studio
-Run on an Intel i7-6700K 4.0 GHz processor; compiled with MSVC 2015; node.js v6.3.1.
+Run on an Intel i7-6700K 4.0 GHz processor; compiled with MSVC 2015; node.js v6.9.1.
 
 ```
 $ node benchmark/benchmark.js
 16 bit types (Uint16Array, Int16Array)
 array size    bswap.native        bswap.js  Native:JS            node  network-byte-o   endian-toggle
-         1       9,613,755      11,826,989       0.81       8,475,564       1,700,083       3,874,999
-        10      97,042,860     101,716,521       0.95      76,003,795      15,804,110      32,134,103
-       100     953,008,231     464,119,545       2.05     476,201,619     116,807,394     153,226,065
-      1000   6,426,743,793     798,765,235       8.05   3,867,224,701     343,781,438     246,060,748
-     10000  18,453,693,952     870,322,876      21.20  14,249,355,741     456,976,905     275,911,914
+         1       9,623,128      11,744,194       0.82      10,321,414       1,722,619       5,007,272
+        10      92,939,729     105,099,791       0.88      97,937,560      16,434,764      39,068,393
+       100     836,706,259     478,135,777       1.75     531,663,161     117,835,015     122,989,862
+      1000   7,103,465,043     780,571,487       9.10   4,125,276,485     348,755,856     158,190,387
+     10000  30,311,532,432     870,230,276      34.83  14,508,789,926     416,698,205     174,576,092
 
 32 bits types (Uint32Array, Int32Array, Float32Array)
-array size          Native              JS  Native:JS            node  network-byte-o         etoggle
-         1       8,097,057      11,826,481       0.68       8,386,270       1,771,717       3,908,308
-        10      81,797,773     100,940,371       0.81      74,507,375      17,057,524      30,400,790
-       100     737,441,176     403,581,517       1.83     483,920,374     102,595,513     102,228,587
-      1000   4,585,211,237     605,539,513       7.57   3,301,909,784     273,677,920     129,688,099
-     10000   9,420,802,017     654,845,585      14.39   7,040,256,671     306,534,733     137,147,637
+array size    bswap.native        bswap.js  Native:JS            node  network-byte-o   endian-toggle
+         1       8,424,850      11,766,511       0.72      10,246,743       1,788,284       4,747,687
+        10      80,099,734      99,091,399       0.81      89,075,993      16,762,539      34,038,929
+       100     778,506,169     392,606,447       1.98     490,808,650      96,666,526      83,384,793
+      1000   5,755,961,382     584,114,433       9.85   3,396,910,232     257,698,664     106,384,258
+     10000  13,990,895,416     649,662,228      21.54   7,111,943,703     308,314,686     120,570,771
 
 64 bit types (Float64Array)
-array size          Native              JS  Native:JS            node  network-byte-o         etoggle
-         1       7,700,237      11,052,820       0.70       7,278,691                       3,755,845
-        10      76,533,589      89,571,447       0.85      61,877,117                      25,662,763
-       100     652,991,006     319,891,219       2.04     427,374,201                      58,348,806
-      1000   3,198,724,039     439,108,024       7.28   2,399,710,498                      74,203,420
-     10000   5,043,258,651     440,390,304      11.45   3,882,154,296                      77,389,275
+array size    bswap.native        bswap.js  Native:JS            node  network-byte-o   endian-toggle
+         1       8,247,345      10,953,469       0.75       8,553,544                       4,615,601
+        10      78,144,438      89,228,121       0.88      69,683,579                      26,828,479
+       100     741,464,085     309,504,200       2.40     449,366,982                      56,739,112
+      1000   4,541,352,325     430,736,326      10.54   2,389,748,759                      67,823,257
+     10000   7,972,476,354     433,632,544      18.39   3,877,818,734                      71,182,283
 ```
 
 ##### Linux + GCC
-Run on an Intel Xeon (Haswell) 2.3 GHz processor; compiled with gcc 5.4; node.js 6.6.0
+Run on an Intel Xeon (Haswell) 2.3 GHz processor; compiled with gcc 5.4; node.js 6.10.0
 
 ```
 $ node benchmark/benchmark.js
 16 bit types (Uint16Array, Int16Array)
-array size          Native              JS  Native:JS            node        nbo-hton         etoggle
-         1       5,244,644       5,026,932       1.04       3,580,626         744,053       1,539,757
-        10      51,791,104      42,322,691       1.22      33,075,131       6,781,430      12,801,456
-       100     527,499,597     222,458,085       2.37     155,244,427      42,646,759      47,466,223
-      1000   3,259,448,912     419,806,035       7.76     659,131,889     139,357,829      57,895,409
-     10000   9,422,767,318     421,840,993      22.34   1,328,409,914     238,130,717      81,827,561
+array size    bswap.native        bswap.js  Native:JS            node  network-byte-o   endian-toggle
+         1       7,165,478       7,312,635       0.98       6,484,115       1,335,542       2,768,400
+        10      68,776,049      63,314,781       1.09      59,665,460      12,773,941      22,364,736
+       100     688,617,555     309,237,407       2.23     274,180,440      80,521,009      71,115,057
+      1000   5,188,942,005     536,719,907       9.67   1,062,689,936     214,415,320      95,796,719
+     10000  19,275,597,207     599,452,514      32.16   1,585,267,860     327,547,954     104,935,171
 
-32 bit types (Uint32Array, Int32Array, Float32Array)
-array size          Native              JS  Native:JS            node        nbo-hton         etoggle
-         1       4,717,200       4,758,587       0.99       3,442,169         819,240       1,518,156
-        10      48,461,691      41,443,893       1.17      30,884,029       8,030,576      11,171,093
-       100     452,300,997     182,326,619       2.48     148,421,110      34,824,975      26,433,741
-      1000   2,513,577,048     314,465,980       7.99     772,784,152      89,412,062      36,650,725
-     10000   4,504,804,963     361,385,763      12.47   1,459,533,539     145,833,158      49,651,697
+32 bits types (Uint32Array, Int32Array, Float32Array)
+array size    bswap.native        bswap.js  Native:JS            node  network-byte-o   endian-toggle
+         1       6,422,036       6,937,930       0.93       6,394,318       1,346,763       2,762,375
+        10      62,386,195      59,012,938       1.06      55,481,606      13,121,369      18,696,615
+       100     596,551,383     252,945,128       2.36     290,599,325      63,995,412      51,085,414
+      1000   4,029,053,228     422,846,152       9.53   1,244,689,635     165,566,848      67,920,636
+     10000   6,033,072,610     448,254,354      13.46   1,879,609,356     237,455,933      74,017,061
 
 64 bit types (Float64Array)
-array size          Native              JS  Native:JS            node        nbo-hton         etoggle
-         1       4,531,083       4,305,089       1.05       2,817,672                       1,331,291
-        10      44,578,940      37,572,752       1.19      25,876,374                       8,423,013
-       100     382,249,709     137,271,339       2.78     135,520,956                      18,949,443
-      1000   1,600,655,189     203,786,262       7.85     739,446,806                      22,149,947
-     10000   2,475,442,656     239,289,309      10.34   1,173,594,391                      33,553,118
+array size    bswap.native        bswap.js  Native:JS            node  network-byte-o   endian-toggle
+         1       6,107,068       6,880,232       0.89       5,507,570                       2,642,804
+        10      59,792,589      55,598,979       1.08      45,608,568                      16,137,452
+       100     517,743,147     196,702,625       2.63     266,074,952                      34,681,753
+      1000   2,683,745,928     286,584,407       9.36   1,087,181,187                      40,301,519
+     10000   3,227,705,828     296,483,220      10.89   1,555,902,990                      43,150,733
 ```
 
 Note that there's an inflection point between the penalty for crossing into C++ and the
@@ -131,13 +139,13 @@ you're processing small arrays, it is available as `bswap.js(arr)`.
 
 * **Node.js's built-in [buffer.swap16|32|64](https://nodejs.org/api/buffer.html#buffer_buf_swap16)
 methods** (16/32 added in v5.10.0; 64 added by me in 6.3.0). Operates in-place. No browser support.
-Slower except on Windows.
+Slower except for small arrays (where it uses the JS implementation).
 
   In 6.3.0 I added some optimizations to node.js's implementation. The optimizations are effective
   on Windows, but GCC does not do the same automatic vectorization that MSVC does, nor does node's
   default build config enable all SSE/AVX instructions. This library's build config enables those
   extensions and uses builtins that are not worth attempting to support on all of the architectures
-  that node.js needs to support. -- That is to say, this library is faster, but is only tested on
+  that node.js needs to support. -- That is to say, this library is faster, but is only supported on
   x86.
 
 ```js
