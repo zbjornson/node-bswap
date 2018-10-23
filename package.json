@@ -31,7 +31,7 @@
   },
   "homepage": "https://github.com/zbjornson/node-bswap#readme",
   "dependencies": {
-    "nan": "^2.4.0"
+    "nan": "^2.11.1"
   },
   "devDependencies": {
     "chai": "^3.5.0",
