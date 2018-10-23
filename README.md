@@ -2,9 +2,9 @@
 [![Build Status](https://dev.azure.com/zbjornson/node-bswap/_apis/build/status/zbjornson.node-bswap)](https://dev.azure.com/zbjornson/node-bswap/_build/latest?definitionId=2)
 
 A function to quickly swap bytes (a.k.a. reverse the byte ordering, change
-endianness) of typed arrays in-place for node.js and browsers. Works with all
-of the typed array types. For node.js 4.x and later, this also works on
-Buffers if you construct a TypedArray view on the underlying array buffer (see below).
+endianness) of typed arrays in-place for Node.js and browsers. Works with all of
+the typed array types. For Node.js 4.x and later, this also works on Buffers if
+you construct a TypedArray view on the underlying array buffer (see below).
 
 Install:
 ```
@@ -13,16 +13,16 @@ $ npm install bswap
 
 Use (node.js):
 ```js
-> var bswap = require("bswap");
-> var x = new Uint16Array([1, 2, 3, 4, 5, 6, 7, 8]);
+> const bswap = require("bswap");
+> const x = new Uint16Array([1, 2, 3, 4, 5, 6, 7, 8]);
 > bswap(x);
 > x
 Uint16Array [ 256, 512, 768, 1024, 1280, 1536, 1792, 2048 ]
 
 // With buffers:
-> var b = Buffer.alloc(128);
+> const b = Buffer.alloc(128);
 // This constructs a "view" on the same memory; it does not allocate new memory:
-> var ui32 = new Uint32Array(b.buffer, b.byteOffset, b.byteLength / Uint32Array.BYTES_PER_ELEMENT);
+> const ui32 = new Uint32Array(b.buffer, b.byteOffset, b.byteLength / Uint32Array.BYTES_PER_ELEMENT);
 > bswap(ui32);
 ```
 
@@ -46,12 +46,12 @@ Native code requires:
 * GCC 4.8.x or later
 * ICC 16 or later
 
-In the browser or when native code is unavailable, this library falls back to
-a fast, pure javascript implementation. The javascript implementation is also
+In the browser or when native code is unavailable, this library falls back to a
+fast, pure javascript implementation. The javascript implementation is also
 always explicitly available:
 
 ```js
-> var bswap = require("bswap").js; // Use javascript implementation explicitly
+> const bswap = require("bswap").js; // Use javascript implementation explicitly
 ```
 
 ## Benchmarks
@@ -154,7 +154,7 @@ on a node.js buffer, handles any byte size, returns a new buffer (does not opera
 in-place), slow.
 
 ```js
-> var x = new Uint16Array([2048])
+> const x = new Uint16Array([2048])
 > toggle(Buffer.from(x.buffer), x.BYTES_PER_ELEMENT * 8)
 <Buffer d2 04 09 07>
 ```
@@ -167,22 +167,22 @@ thing but have different syntaxes. It can operate on strings, but it cannot swap
 
 ```js
 // Using hton
-> var b = [];
+> const b = [];
 > nbo.htons(b, 0, 2048);
 > b
 [8, 0]
 
 // bswap:
-> var x = new Uint16Array([2048])
+> const x = new Uint16Array([2048])
 > bswap(x)
 > new Uint8Array(x.buffer, x.byteOffset, 2) // inspect underlying ArrayBuffer
 Uint8Array [ 8, 0 ]
 
 // or using ntoh
-> var x = new Uint16Array([2048])
+> const x = new Uint16Array([2048])
 > nbo.ntohs(new Uint8Array(x.buffer, x.byteOffset, 2), 0)
 8
-> var z = new Uint16Array([8])
+> const z = new Uint16Array([8])
 > new Uint8Array(z.buffer, z.byteOffset, 2)
 Uint8Array [ 8, 0 ]
 ```
