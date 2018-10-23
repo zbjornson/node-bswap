@@ -69,9 +69,9 @@ static void shuffle(Local<TypedArray> data_ta) {
 	size_t byteLength = data_ta->ByteLength();
 	size_t elemLength = byteLength / sizeof(STYPE);
 
-	// Scalar until aligned to cache line
+	// Scalar until aligned
 	size_t sIdx = 0;
-	size_t preLength = ((uintptr_t)(void *)(bytes) % 64) / sizeof(STYPE);
+	size_t preLength = ((uintptr_t)(void *)(bytes) % 32) / sizeof(STYPE);
 	if (elemLength < preLength) preLength = elemLength;
 	while (sIdx < preLength) swap(&(*data)[sIdx++]);
 
