@@ -1,36 +1,29 @@
 {
-  "conditions": [
-    ['OS=="win"', {
-      "variables": {
-        "has_avx2%": "<!(.\util\cpuinfo.exe 1 5 7)"
-      }
-    }]
-  ],
   "targets": [
     {
       "target_name": "bswap",
       "sources": [ "src/bswap.cc" ],
       "include_dirs" : [
-          "<!(node -e \"require('nan')\")"
+        "<!(node -e \"require('nan')\")"
       ],
       "cflags":[
-        "-march=native"
+        "-march=native",
+        "-Wno-unused-function", # CPU feature detection only used on Win
+        "-Wno-unused-const-variable", # cpuid regs
+        "-Wno-cast-function-type" # https://github.com/nodejs/nan/issues/807
       ],
-      "conditions": [
-        ['OS=="win" and has_avx2==1', {
-          "msvs_settings": {
-            "VCCLCompilerTool": {
-              "EnableEnhancedInstructionSet": 5 # /arch:AVX2
-            }
-          }
-        }, {
-          "msvs_settings": {
-            "VCCLCompilerTool": {
-              "EnableEnhancedInstructionSet": 3 # /arch:AVX
-            }
-          }
-        }]
-      ]
+      "msvs_settings": {
+        "VCCLCompilerTool": {
+          "EnableEnhancedInstructionSet": 3 # /arch:AVX
+          # 0-not set, 1-sse, 2-sse2, 3-avx, 4-ia32, 5-avx2
+        }
+      },
+      "xcode_settings": {
+        "OTHER_CPLUSPLUSFLAGS": [
+          "-march=native",
+          "-Wno-unused-const-variable"
+        ]
+      }
     }
   ]
 }
