@@ -1,5 +1,5 @@
 (function () {
-	var bswap = function (typedArray) {
+	let bswap = function (typedArray) {
 		if (ArrayBuffer.isView(typedArray)) {
 			switch (typedArray.BYTES_PER_ELEMENT) {
 				case 1:
@@ -21,31 +21,32 @@
 
 	if (typeof require !== "undefined") {
 		try {
-			var bswapNative = require("./build/Release/bswap").flipBytes;
-			var bswapJS = bswap;
-			bswap = bswapNative;
-			bswap.native = bswapNative;
+			const bindings = require("./build/Release/bswap");
+			const bswapJS = bswap;
+			bswap = bindings.flipBytes;
+			bswap.native = bindings.flipBytes;
 			bswap.js = bswapJS;
+			bswap.ise = bindings.ISE;
 			module.exports = bswap;
 			return;
 		} catch (e) {}
 	}
 
 	function flip16(info) {
-		var flipper = new Uint8Array(info.buffer, info.byteOffset, info.length * 2);
-		var len = flipper.length;
-		for (var i = 0; i < len; i += 2) {
-			var t = flipper[i];
+		const flipper = new Uint8Array(info.buffer, info.byteOffset, info.length * 2);
+		const len = flipper.length;
+		for (let i = 0; i < len; i += 2) {
+			let t = flipper[i];
 			flipper[i] = flipper[i + 1];
 			flipper[i + 1] = t;
 		}
 	}
 
 	function flip32(info) {
-		var flipper = new Uint8Array(info.buffer, info.byteOffset, info.length * 4);
-		var len = flipper.length;
-		for (var i = 0; i < len; i += 4) {
-			var t = flipper[i];
+		const flipper = new Uint8Array(info.buffer, info.byteOffset, info.length * 4);
+		const len = flipper.length;
+		for (let i = 0; i < len; i += 4) {
+			let t = flipper[i];
 			flipper[i] = flipper[i + 3];
 			flipper[i + 3] = t;
 			t = flipper[i + 1];
@@ -55,10 +56,10 @@
 	}
 
 	function flip64(info) {
-		var flipper = new Uint8Array(info.buffer, info.byteOffset, info.length * 8);
-		var len = flipper.length;
-		for (var i = 0; i < len; i += 8) {
-			var t = flipper[i];
+		const flipper = new Uint8Array(info.buffer, info.byteOffset, info.length * 8);
+		const len = flipper.length;
+		for (let i = 0; i < len; i += 8) {
+			let t = flipper[i];
 			flipper[i] = flipper[i + 7];
 			flipper[i + 7] = t;
 			t = flipper[i + 1];
