@@ -8,6 +8,7 @@
       ],
       "cflags":[
         "-march=native",
+        "-falign-loops=32", # See readme; significant improvement for some cases
         "-Wno-unused-function", # CPU feature detection only used on Win
         "-Wno-unused-const-variable", # cpuid regs
         "-Wno-cast-function-type" # https://github.com/nodejs/nan/issues/807
