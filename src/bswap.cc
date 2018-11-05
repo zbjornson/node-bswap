@@ -46,7 +46,7 @@ static bool cpuid(uint8_t outreg, uint8_t bit, uint32_t initEax, uint32_t initEc
 
 // __builtin_cpu_supports("avx2") for GCC 4.8+, Clang 3.7+, ICC 16+ only
 static bool supportsAVX2() { return cpuid(EBX, 5, 7); }
-// static bool supportsAVX512BW() { return cpuid(EBX, 30, 7); }
+static bool supportsAVX512BW() { return cpuid(EBX, 30, 7); }
 
 ///// Vector class for templating
 class Vec128 {
@@ -83,6 +83,25 @@ public:
 	void shuffle(Vec256 mask) { v = _mm256_shuffle_epi8(v, mask.v); }
 	void store(uint8_t* addr) { _mm256_storeu_si256((__m256i*)addr, v); }
 };
+
+#ifndef _MSC_VER
+// v15.3 starts to have AVX-512 support, but my install doesn't have proper
+// zmmintrin intrinsics.
+class Vec512 {
+public:
+	__m512i v;
+	static uint8_t size() { return 64; }
+	template<typename STYPE> static Vec512 getMask() {
+		return Vec512(_mm512_broadcast_i32x4(Vec128::getMask<STYPE>().v));
+	}
+
+	Vec512() {};
+	Vec512(__m512i const & _v) : v(_v) {};
+	void load(uint8_t* addr) { v = _mm512_loadu_si512((void*)addr); }
+	void shuffle(Vec512 mask) { v = _mm512_shuffle_epi8(v, mask.v); }
+	void store(uint8_t* addr) { _mm512_storeu_si512((void*)addr, v); }
+};
+#endif
 
 static inline void swap(uint16_t* val) { *val = BSWAP_INTRINSIC_2(*val); }
 static inline void swap(uint32_t* val) { *val = BSWAP_INTRINSIC_4(*val); }
@@ -152,7 +171,11 @@ NAN_MODULE_INIT(Init) {
 #else
 	// GNU-compatible compilers have -march=native, and refuse to emit
 	// instructions from an instruction set less than the -m flags allow.
-# ifdef __AVX2__
+# if defined(__AVX512BW__) && defined(BSWAP_USE_AVX512)
+	// Disabled by default because it is slower than AVX2.
+	ft = Nan::New<v8::FunctionTemplate>(flipBytes<Vec512>);
+	ise = Nan::New("AVX512");
+# elif defined(__AVX2__)
 	ft = Nan::New<v8::FunctionTemplate>(flipBytes<Vec256>);
 	ise = Nan::New("AVX2");
 # else
