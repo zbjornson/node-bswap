@@ -64,9 +64,11 @@ public:
 
 	Vec128() {};
 	Vec128(__m128i const & _v) : v(_v) {};
-	void load(uint8_t* addr) { v = _mm_loadu_si128((__m128i*)addr); }
-	void shuffle(Vec128 mask) { v = _mm_shuffle_epi8(v, mask.v); }
-	void store(uint8_t* addr) { _mm_storeu_si128((__m128i*)addr, v); }
+	static inline void swap(uint8_t* addr, Vec128 mask) {
+		__m128i v = _mm_loadu_si128((__m128i*)addr);
+		v = _mm_shuffle_epi8(v, mask.v);
+		_mm_storeu_si128((__m128i*)addr, v);
+	}
 };
 
 class Vec256 {
@@ -79,9 +81,11 @@ public:
 
 	Vec256() {};
 	Vec256(__m256i const & _v) : v(_v) {};
-	void load(uint8_t* addr) { v = _mm256_loadu_si256((__m256i*)addr); }
-	void shuffle(Vec256 mask) { v = _mm256_shuffle_epi8(v, mask.v); }
-	void store(uint8_t* addr) { _mm256_storeu_si256((__m256i*)addr, v); }
+	static inline void swap(uint8_t* addr, Vec256 mask) {
+		__m256i v = _mm256_loadu_si256((__m256i*)addr);
+		v = _mm256_shuffle_epi8(v, mask.v);
+		_mm256_storeu_si256((__m256i*)addr, v);
+	}
 };
 
 #ifndef _MSC_VER
@@ -97,9 +101,11 @@ public:
 
 	Vec512() {};
 	Vec512(__m512i const & _v) : v(_v) {};
-	void load(uint8_t* addr) { v = _mm512_loadu_si512((void*)addr); }
-	void shuffle(Vec512 mask) { v = _mm512_shuffle_epi8(v, mask.v); }
-	void store(uint8_t* addr) { _mm512_storeu_si512((void*)addr, v); }
+	static inline void swap(uint8_t* addr, Vec512 mask) {
+		__m512i v = _mm512_loadu_si512((void*)addr);
+		v = _mm512_shuffle_epi8(v, mask.v);
+		_mm512_storeu_si512((void*)addr, v);
+	}
 };
 #endif
 
@@ -114,34 +120,48 @@ static void shuffle(v8::Local<v8::TypedArray> data_ta) {
 
 	size_t byteLength = data_ta->ByteLength();
 	size_t elemLength = byteLength / sizeof(STYPE);
+	size_t byteIdx = 0;
+	size_t elemIdx = 0;
 
-	// Scalar until aligned
-	size_t sIdx = 0;
+	// 1. Head: Scalar until 32B-aligned
 	size_t preLength = ((uintptr_t)(void *)(bytes) % 32) / sizeof(STYPE);
 	if (elemLength < preLength) preLength = elemLength;
-	while (sIdx < preLength) swap(&(*data)[sIdx++]);
-
-	size_t bIdx = sIdx * sizeof(STYPE);
+	while (elemIdx < preLength) swap(&(*data)[elemIdx++]);
+	byteIdx = elemIdx * sizeof(STYPE);
 
 	size_t vectSize = VTYPE::size();
-	size_t tailLength = (byteLength - bIdx) % vectSize;
-	size_t vectLength = byteLength - tailLength;
-
 	VTYPE mask = VTYPE::template getMask<STYPE>();
-	VTYPE vec;
-	while (bIdx < vectLength) {
-		vec.load(&bytes[bIdx]);
-		vec.shuffle(mask);
-		vec.store(&bytes[bIdx]);
-		bIdx += vectSize;
+
+	// 2. Main body: vectors unrolled by 8
+	size_t unrolledEndIdx = byteLength - ((byteLength - byteIdx) % (vectSize * 8));
+	while (byteIdx < unrolledEndIdx) {
+		VTYPE::swap(&bytes[byteIdx + 0 * vectSize], mask);
+		VTYPE::swap(&bytes[byteIdx + 1 * vectSize], mask);
+		VTYPE::swap(&bytes[byteIdx + 2 * vectSize], mask);
+		VTYPE::swap(&bytes[byteIdx + 3 * vectSize], mask);
+		VTYPE::swap(&bytes[byteIdx + 4 * vectSize], mask);
+		VTYPE::swap(&bytes[byteIdx + 5 * vectSize], mask);
+		VTYPE::swap(&bytes[byteIdx + 6 * vectSize], mask);
+		VTYPE::swap(&bytes[byteIdx + 7 * vectSize], mask);
+		byteIdx += 8 * vectSize;
 	}
 
-	sIdx = vectLength / sizeof(STYPE);
-	while (sIdx < elemLength) swap(&(*data)[sIdx++]);
+	// 3. Tail A: vectors without unrolling
+	size_t vectEndIdx = byteLength - ((byteLength - byteIdx) % vectSize);
+	while (byteIdx < vectEndIdx) {
+		VTYPE::swap(&bytes[byteIdx], mask);
+		byteIdx += vectSize;
+	}
+
+	// 4. Tail B: scalar until end
+	elemIdx = byteIdx / sizeof(STYPE);
+	while (elemIdx < elemLength) swap(&(*data)[elemIdx++]);
 }
 
 template <class VTYPE>
 NAN_METHOD(flipBytes) {
+	// consider this to warm up the wider registers:
+	// asm volatile("vxorps ymm0, ymm0, ymm0" : : "ymm0")
 	v8::Local<v8::Value> arr = info[0];
 	if (arr->IsInt16Array() || arr->IsUint16Array()) {
 		shuffle<uint16_t, VTYPE>(arr.As<v8::TypedArray>());

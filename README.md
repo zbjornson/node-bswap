@@ -48,69 +48,69 @@ const bswap = require("bswap").js; // Use javascript implementation explicitly
 Showing millions of elements processed per second when invoked with a
 10,000-element array. (Run the benchmark suite to see results for varying array
 lengths and other libraries.) Ran on an Intel i7-7700HQ 2.80 GHz processor (AVX2
-supported); Node.js v8.x.
+supported); Node.js v8.x; Windows 10 (MSVC) or Ubuntu 16.04 (GCC, Clang).
 
-| compiler  |    C++ |   JS | Native:JS |   node |
-| --------- | -----: | ---: | --------: | -----: |
+| compiler  |    C++ |   JS   | Native:JS | Node.js | Native:Node |
+| --------- | -----: | ---:   | --------: | ------: | ----------: |
 | **16 bit types (Uint16Array, Int16Array)**
-| MSVC 2015 | 26,508 |  625 |     42.40 | 12,141 |
-| GCC 8.1   | 26,245 |  601 |     43.63 |  1,507 |
+| MSVC 2015 | 32,286 |    625 |     51.7x |  12,141 |        2.7x |
+| GCC 8.1   | 31,549 | (same) |     50.5x |   1,507 |       20.9x |
+| Clang 6   | 30,238 | (same) |     48.4x |  (same) |       20.1x |
 | **32 bits types (Uint32Array, Int32Array, Float32Array)**
-| MSVC 2015 | 10,144 |  342 |     29.58 |  5,840 |
-| GCC 8.1   | 11,553 |  328 |     35.15 |  2,361 |
+| MSVC 2015 | 12,558 |    342 |     36.7x |   5,840 |        2.2x |
+| GCC 8.1   | 12,074 | (same) |     35.3x |   2,361 |        5.1x |
+| Clang 6   | 12,587 | (same) |     36.8x |  (same) |        5.3x |
 | **64 bit types (Float64Array)**
-| MSVC 2015 | 6,244  |  179 |     34.76 |  3,043 |
-| GCC 8.1   | 5,453  |  182 |     29.81 |  1,790 |
+| MSVC 2015 |  6,841 |    179 |     38.2x |   3,043 |        2.2x |
+| GCC 8.1   |  6,528 | (same) |     36.5x |   1,790 |        3.6x |
+| Clang 6   |  6,598 | (same) |     36.9x |  (same) |        3.7x |
 
 ### Optimization notes
 
 Despite how simple this procedure is, it is very difficult to get all compilers
-to produce optimal code for all instruction sets. The current version emits the
-best code with GCC and MSVC. LLVM Clang is comparable for 16-bit types with all
-ISEs, but significantly slower for 32- and 64-bit types with all ISEs.
+to produce optimal code for all instruction sets. (In particular, GCC and clang
+seem to have inherent optimizations for swapping 16-bit types, which can
+conflict with my own optimizations; and they unroll loops to different degrees.)
 
-There's an AVX-512 implementation available that is disabled by default because
-it is slower than the AVX2 implementation.
+The AVX2 version sustains just over 23 bytes/cycle (coming from L1) with 16-bit
+types. I haven't gotten the 32-bit types to achieve the same throughput as even
+the 64-bit types.
+
+There's an AVX-512 implementation that is disabled by default because it is ~2
+to 15% slower than the AVX2 implementation. The CPU I tested on throttles by
+~20% when running the AVX512 vs. AVX2 version, but the vector width increases
+by 2x, so I'm not sure what's up.
 
 Below shows GCC 8.1 and LLVM Clang 6.0 run on the same Skylake SP machine with
 each of the three ISAs and three scalar types. (The Node.js column is shown so
 the Native column can be normalized to it.) Values are ops/sec.
 
 ```
-╔═══════╤════════╤═════════════════╤════════════════╤═══════════════╤═══════════╗
-║ Width │ ISE    │ Compiler        │ This Library   │ Node.js       │ this:node ║
-╠═══════╪════════╪═════════════════╪════════════════╪═══════════════╪═══════════╣
-║ 16    │ SSSE3  │ GCC8            │ 12,653,020,236 │ 1,216,141,201 │ 10.40     ║
-║ 16    │ SSSE3  │ GCC8-al32       │ 12,733,630,917 │ 1,214,958,824 │ 10.48     ║
-║ 16    │ AVX2   │ GCC8            │ 15,091,712,556 │ 1,192,133,126 │ 12.66     ║
-║ 16    │ AVX2   │ GCC8-al32       │ 21,599,016,828 │ 1,208,407,961 │ 17.87 *   ║
-║ 16    │ AVX512 │ GCC8            │ 20,336,576,654 │ 1,198,435,702 │ 16.97     ║
-║ 16    │ SSSE3  │ Clang6          │ 12,994,362,801 │ 1,190,614,664 │ 10.91     ║
-║ 16    │ AVX2   │ Clang6          │ 21,689,271,126 │ 1,203,133,316 │ 18.03     ║
-║ 16    │ AVX512 │ Clang6          │ 20,010,693,365 │ 1,174,994,915 │ 17.03     ║
-║ 16    │ AVX512 │ Clang6-nointrin │ 22,923,164,493 │ 1,207,507,344 │ 18.98 *   ║
-╠═══════╪════════╪═════════════════╪════════════════╪═══════════════╪═══════════╣
-║ 32    │ SSSE3  │ GCC8            │  4,047,932,606 │ 1,885,214,174 │  2.15     ║
-║ 32    │ SSSE3  │ GCC8-al32       │  6,059,427,503 │ 1,911,981,279 │  3.17     ║
-║ 32    │ AVX2   │ GCC8            │  8,764,230,884 │ 1,871,032,648 │  4.68 *   ║
-║ 32    │ AVX2   │ GCC8-al32       │  9,040,984,638 │ 1,891,490,104 │  4.78 *   ║
-║ 32    │ AVX512 │ GCC8            │  7,739,234,783 │ 1,879,787,126 │  4.12     ║
-║ 32    │ SSSE3  │ Clang6          │  4,157,620,539 │ 1,896,533,115 │  2.19     ║
-║ 32    │ AVX2   │ Clang6          │  7,747,506,930 │ 1,869,321,807 │  4.14     ║
-║ 32    │ AVX512 │ Clang6          │  8,633,861,272 │ 1,860,963,702 │  4.64     ║
-╠═══════╪════════╪═════════════════╪════════════════╪═══════════════╪═══════════╣
-║ 64    │ SSSE3  │ GCC8            │  3,101,205,301 │ 1,441,643,749 │  2.15     ║
-║ 64    │ SSSE3  │ GCC8-al32       │  3,249,387,192 │ 1,429,194,277 │  2.27     ║
-║ 64    │ AVX2   │ GCC8            │  4,927,928,205 │ 1,402,571,030 │  3.51 *   ║
-║ 64    │ AVX2   │ GCC8-al32       │  5,066,601,453 │ 1,429,882,304 │  3.54 *   ║
-║ 64    │ AVX512 │ GCC8            │  4,300,340,158 │ 1,400,720,898 │  3.07     ║
-║ 64    │ SSSE3  │ Clang6          │  2,220,142,836 │ 1,412,992,328 │  1.57     ║
-║ 64    │ AVX2   │ Clang6          │  4,085,709,580 │ 1,437,597,532 │  2.84     ║
-║ 64    │ AVX512 │ Clang6          │  4,741,903,055 │ 1,410,231,436 │  3.36     ║
-╚═══════╧════════╧═════════════════╧════════════════╧═══════════════╧═══════════╝
-
-GCC8-al32: With `-falign-loops=32`. This has a significant impact for
-width=16/AVX2 and width=32/SSSE3, and potentially width=64/SSSE3.
+╔═══════╤════════╤═════════════════╤════════╤═══════╤═══════════╗
+║ Width │ ISE    │ Compiler        │ This   │ Node  │ this:node ║
+╠═══════╪════════╪═════════════════╪════════╪═══════╪═══════════╣
+║ 16    │ AVX512 │ GCC8            │ 20,041 │ 1,225 │ 16.36     ║
+║ 16    │ AVX2   │ GCC8            │ 23,435 │ 1,222 │ 19.18     ║
+║ 16    │ SSSE3  │ GCC8            │ 14,322 │ 1,231 │ 11.63     ║
+║ 16    │ AVX512 │ Clang6          │ 19,246 │ 1,231 │ 15.63     ║
+║ 16    │ AVX2   │ Clang6          │ 23,018 │ 1,234 │ 18.65     ║
+║ 16    │ SSSE3  │ Clang6          │ 14,062 │ 1,228 │ 11.45     ║
+║ 16    │ AVX2   │ Clang6-nointrin │ 22,923 │ 1,207 │ 18.99     ║
+╠═══════╪════════╪═════════════════╪════════╪═══════╪═══════════╣
+║ 32    │ AVX512 │ GCC8            │ 8,378  │ 1,904 │ 4.40      ║
+║ 32    │ AVX2   │ GCC8            │ 8,459  │ 1,907 │ 4.44      ║
+║ 32    │ SSSE3  │ GCC8            │ 6,139  │ 1,912 │ 3.21      ║
+║ 32    │ AVX512 │ Clang6          │ 8,383  │ 1,917 │ 4.37      ║
+║ 32    │ AVX2   │ Clang6          │ 8,730  │ 1,899 │ 4.60      ║
+║ 32    │ SSSE3  │ Clang6          │ 5,841  │ 1,925 │ 3.03      ║
+╠═══════╪════════╪═════════════════╪════════╪═══════╪═══════════╣
+║ 64    │ AVX512 │ GCC8            │ 4,191  │ 1,405 │ 2.98      ║
+║ 64    │ AVX2   │ GCC8            │ 4,781  │ 1,441 │ 3.32      ║
+║ 64    │ SSSE3  │ GCC8            │ 3,263  │ 1,441 │ 2.26      ║
+║ 64    │ AVX512 │ Clang6          │ 4,203  │ 1,442 │ 2.91      ║
+║ 64    │ AVX2   │ Clang6          │ 4,890  │ 1,450 │ 3.37      ║
+║ 64    │ SSSE3  │ Clang6          │ 3,289  │ 1,390 │ 2.37      ║
+╚═══════╧════════╧═════════════════╧════════╧═══════╧═══════════╝
 
 Clang6-nointrin: __builtin_bswap16() called in a loop. The bswap builtin is only
 fast for 16-bit types; the other sizes are extremely slow. This appears to be
@@ -122,9 +122,9 @@ from extensive and very tidy loop unrolling.
 | Library | Operand | In-Place | 64-bit Type Support | Browser | Speed (vs. bswap)* |
 | --- | --- | --- | --- | --- | --- |
 | bswap (this) | TypedArray | yes | yes | yes | 1.00 |
-| node [`buffer.swap16/32/64`](https://nodejs.org/api/buffer.html#buffer_buf_swap16) | Buffer | yes | since 6.3.0 | no | 0.06 to 0.45 |
-| [endian-toggle](https://github.com/substack/endian-toggle) | Buffer | no | yes | no | 0.014 |
-| [network-byte-order](https://github.com/mattcg/network-byte-order) | Number/\[Octet\] | no | no | yes | 0.007 |
+| node [`buffer.swap16/32/64`](https://nodejs.org/api/buffer.html#buffer_buf_swap16) | Buffer | yes | since 6.3.0 | no | 0.05 to 0.38 |
+| [network-byte-order](https://github.com/mattcg/network-byte-order) | Number/\[Octet\] | no | no | yes | 0.010 |
+| [endian-toggle](https://github.com/substack/endian-toggle) | Buffer | no | yes | no | 0.0056 |
 
 \* Higher is better. For 16-bit types, 10k-element arrays. Range given for
 Node.js version reflects Windows vs. Linux benchmark.
@@ -149,7 +149,7 @@ Node.js version reflects Windows vs. Linux benchmark.
 
 * **[endian-toggle](https://github.com/substack/endian-toggle)**. Simple usage,
   operates on a Node.js Buffer, handles any byte size, returns a new buffer
-  (does not operate in-place), slow.
+  (does not operate in-place).
 
   <details><summary>Usage</summary>
 
