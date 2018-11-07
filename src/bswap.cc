@@ -65,9 +65,9 @@ public:
 	Vec128() {};
 	Vec128(__m128i const & _v) : v(_v) {};
 	static inline void swap(uint8_t* addr, Vec128 mask) {
-		__m128i v = _mm_loadu_si128((__m128i*)addr);
+		__m128i v = _mm_load_si128((__m128i*)addr);
 		v = _mm_shuffle_epi8(v, mask.v);
-		_mm_storeu_si128((__m128i*)addr, v);
+		_mm_store_si128((__m128i*)addr, v);
 	}
 };
 
@@ -82,9 +82,9 @@ public:
 	Vec256() {};
 	Vec256(__m256i const & _v) : v(_v) {};
 	static inline void swap(uint8_t* addr, Vec256 mask) {
-		__m256i v = _mm256_loadu_si256((__m256i*)addr);
+		__m256i v = _mm256_load_si256((__m256i*)addr);
 		v = _mm256_shuffle_epi8(v, mask.v);
-		_mm256_storeu_si256((__m256i*)addr, v);
+		_mm256_store_si256((__m256i*)addr, v);
 	}
 };
 
@@ -102,9 +102,9 @@ public:
 	Vec512() {};
 	Vec512(__m512i const & _v) : v(_v) {};
 	static inline void swap(uint8_t* addr, Vec512 mask) {
-		__m512i v = _mm512_loadu_si512((void*)addr);
+		__m512i v = _mm512_load_si512((void*)addr);
 		v = _mm512_shuffle_epi8(v, mask.v);
-		_mm512_storeu_si512((void*)addr, v);
+		_mm512_store_si512((void*)addr, v);
 	}
 };
 #endif
@@ -122,14 +122,14 @@ static void shuffle(v8::Local<v8::TypedArray> data_ta) {
 	size_t elemLength = byteLength / sizeof(STYPE);
 	size_t byteIdx = 0;
 	size_t elemIdx = 0;
+	size_t vectSize = VTYPE::size();
 
-	// 1. Head: Scalar until 32B-aligned
-	size_t preLength = ((uintptr_t)(void *)(bytes) % 32) / sizeof(STYPE);
+	// 1. Head: Scalar until aligned.
+	size_t preLength = (vectSize - ((uintptr_t)(void *)(bytes) % vectSize)) / sizeof(STYPE);
 	if (elemLength < preLength) preLength = elemLength;
 	while (elemIdx < preLength) swap(&(*data)[elemIdx++]);
 	byteIdx = elemIdx * sizeof(STYPE);
 
-	size_t vectSize = VTYPE::size();
 	VTYPE mask = VTYPE::template getMask<STYPE>();
 
 	// 2. Main body: vectors unrolled by 8
