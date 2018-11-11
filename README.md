@@ -1,9 +1,9 @@
 # node-bswap
 [![Build Status](https://dev.azure.com/zbjornson/node-bswap/_apis/build/status/zbjornson.node-bswap)](https://dev.azure.com/zbjornson/node-bswap/_build/latest?definitionId=2)
 
-A function to quickly swap bytes (a.k.a. reverse the byte ordering, change
-endianness) of TypedArrays in-place for Node.js and browsers. Works with all of
-the TypedArray types. For Node.js 4.x and later, also works on Buffers if you
+The fastest function to swap bytes (a.k.a. reverse the byte ordering, change
+endianness) of TypedArrays in-place for Node.js and browsers. Uses SIMD when
+available. Works with all of the TypedArray types. Also works on Buffers if you
 construct a TypedArray view on the underlying ArrayBuffer (see below).
 
 Install:
@@ -25,8 +25,10 @@ const ui32 = new Uint32Array(b.buffer, b.byteOffset, b.byteLength / Uint32Array.
 bswap(ui32);
 ```
 
-In Node.js when native code and an x86 processor is available, this library uses
-the fastest available SIMD instructions ([PSHUFB (SSSE3) and VPSHUFB (AVX2)](http://www.felixcloutier.com/x86/PSHUFB.html)),
+In Node.js when native code and a recent x86 or ARM processor is available, this
+library uses the fastest available SIMD instructions ([PSHUFB (SSSE3) or VPSHUFB
+(AVX2)](http://www.felixcloutier.com/x86/PSHUFB.html), [REVn
+(NEON)](http://infocenter.arm.com/help/index.jsp?topic=/com.arm.doc.dui0489h/Cihjgdid.html)),
 which allow processing multiple array elements simultaneously for maximum speed.
 
 Native code requires one of:
@@ -48,7 +50,8 @@ const bswap = require("bswap").js; // Use javascript implementation explicitly
 Showing millions of elements processed per second when invoked with a
 10,000-element array. (Run the benchmark suite to see results for varying array
 lengths and other libraries.) Ran on an Intel i7-7700HQ 2.80 GHz processor (AVX2
-supported); Node.js v8.x; Windows 10 (MSVC) or Ubuntu 16.04 (GCC, Clang).
+supported) or Cavium ThunderX 2.0 GHz processor (ARM NEON); Node.js v8.x;
+Windows 10 (MSVC) or Ubuntu 16.04 (GCC, Clang).
 
 | compiler  |    C++ |   JS   | Native:JS | Node.js | Native:Node |
 | --------- | -----: | ---:   | --------: | ------: | ----------: |
@@ -56,14 +59,17 @@ supported); Node.js v8.x; Windows 10 (MSVC) or Ubuntu 16.04 (GCC, Clang).
 | MSVC 2015 | 32,286 |    625 |     51.7x |  12,141 |        2.7x |
 | GCC 8.1   | 31,549 | (same) |     50.5x |   1,507 |       20.9x |
 | Clang 6   | 30,238 | (same) |     48.4x |  (same) |       20.1x |
+| GCC-ARM   |  2,677 |    183 |     14.6x |     297 |        9.0x |
 | **32 bits types (Uint32Array, Int32Array, Float32Array)**
 | MSVC 2015 | 12,558 |    342 |     36.7x |   5,840 |        2.2x |
 | GCC 8.1   | 12,074 | (same) |     35.3x |   2,361 |        5.1x |
 | Clang 6   | 12,587 | (same) |     36.8x |  (same) |        5.3x |
+| GCC-ARM   |    670 |     94 |      7.1x |     249 |        2.7x |
 | **64 bit types (Float64Array)**
 | MSVC 2015 |  6,841 |    179 |     38.2x |   3,043 |        2.2x |
 | GCC 8.1   |  6,528 | (same) |     36.5x |   1,790 |        3.6x |
 | Clang 6   |  6,598 | (same) |     36.9x |  (same) |        3.7x |
+| GCC-ARM   |    382 |     49 |      7.8x |     213 |        1.8x |
 
 ### Optimization notes
 
