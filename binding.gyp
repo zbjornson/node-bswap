@@ -22,6 +22,7 @@
       "xcode_settings": {
         "OTHER_CPLUSPLUSFLAGS": [
           "-march=native",
+          "-Wno-unused-function", # CPU feature detection only used on Win
           "-Wno-unused-const-variable"
         ]
       }
