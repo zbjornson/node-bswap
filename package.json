@@ -6,10 +6,7 @@
   "scripts": {
     "test": "mocha test/*.js"
   },
-  "repository": {
-    "type": "git",
-    "url": "git+https://github.com/zbjornson/node-bswap.git"
-  },
+  "repository": "zbjornson/node-bswap",
   "keywords": [
     "byte",
     "swap",
@@ -21,10 +18,7 @@
     "big endian",
     "shuffle bytes"
   ],
-  "author": {
-    "name": "Zach Bjornson",
-    "email": "zbbjornson@gmail.com"
-  },
+  "author": "Zach Bjornson <zbbjornson@gmail.com>",
   "license": "MIT",
   "bugs": {
     "url": "https://github.com/zbjornson/node-bswap/issues"
@@ -39,5 +33,10 @@
   },
   "browser": {
     "./build/Release/bswap": false
-  }
+  },
+  "files": [
+    "binding.gyp",
+    "src/",
+    "index.d.ts"
+  ]
 }
