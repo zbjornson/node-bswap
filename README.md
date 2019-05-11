@@ -52,7 +52,9 @@ Showing millions of elements processed per second when invoked with a
 10,000-element array. (Run the benchmark suite to see results for varying array
 lengths and other libraries.) Ran on an Intel i7-7700HQ 2.80 GHz processor (AVX2
 supported) or Cavium ThunderX 2.0 GHz processor (ARM NEON); Node.js v8.x;
-Windows 10 (MSVC) or Ubuntu 16.04 (GCC, Clang).
+Windows 10 (MSVC) or Ubuntu 16.04 (GCC, Clang). (Note that a 10,000-element
+Int16Array fits in L1 cache, whereas a 10,000-element Int32Array or Float64Array
+does not.)
 
 | compiler  |    C++ |   JS   | Native:JS | Node.js | Native:Node |
 | --------- | -----: | ---:   | --------: | ------: | ----------: |
@@ -79,50 +81,14 @@ to produce optimal code for all instruction sets. (In particular, GCC and clang
 seem to have inherent optimizations for swapping 16-bit types, which can
 conflict with my own optimizations; and they unroll loops to different degrees.)
 
-The AVX2 version sustains just over 23 bytes/cycle (coming from L1) with 16-bit
-types. I haven't gotten the 32-bit types to achieve the same throughput as even
-the 64-bit types.
-
-There's an AVX-512 implementation that is disabled by default because it is ~2
-to 15% slower than the AVX2 implementation. The CPU I tested on throttles by
-~20% when running the AVX512 vs. AVX2 version, but the vector width increases
-by 2x, so I'm not sure what's up.
-
-Below shows GCC 8.1 and LLVM Clang 6.0 run on the same Skylake SP machine with
-each of the three ISAs and three scalar types. (The Node.js column is shown so
-the Native column can be normalized to it.) Values are ops/sec.
-
-```
-╔═══════╤════════╤═════════════════╤════════╤═══════╤═══════════╗
-║ Width │ ISE    │ Compiler        │ This   │ Node  │ this:node ║
-╠═══════╪════════╪═════════════════╪════════╪═══════╪═══════════╣
-║ 16    │ AVX512 │ GCC8            │ 20,041 │ 1,225 │ 16.36     ║
-║ 16    │ AVX2   │ GCC8            │ 23,435 │ 1,222 │ 19.18     ║
-║ 16    │ SSSE3  │ GCC8            │ 14,322 │ 1,231 │ 11.63     ║
-║ 16    │ AVX512 │ Clang6          │ 19,246 │ 1,231 │ 15.63     ║
-║ 16    │ AVX2   │ Clang6          │ 23,018 │ 1,234 │ 18.65     ║
-║ 16    │ SSSE3  │ Clang6          │ 14,062 │ 1,228 │ 11.45     ║
-║ 16    │ AVX2   │ Clang6-nointrin │ 22,923 │ 1,207 │ 18.99     ║
-╠═══════╪════════╪═════════════════╪════════╪═══════╪═══════════╣
-║ 32    │ AVX512 │ GCC8            │ 8,378  │ 1,904 │ 4.40      ║
-║ 32    │ AVX2   │ GCC8            │ 8,459  │ 1,907 │ 4.44      ║
-║ 32    │ SSSE3  │ GCC8            │ 6,139  │ 1,912 │ 3.21      ║
-║ 32    │ AVX512 │ Clang6          │ 8,383  │ 1,917 │ 4.37      ║
-║ 32    │ AVX2   │ Clang6          │ 8,730  │ 1,899 │ 4.60      ║
-║ 32    │ SSSE3  │ Clang6          │ 5,841  │ 1,925 │ 3.03      ║
-╠═══════╪════════╪═════════════════╪════════╪═══════╪═══════════╣
-║ 64    │ AVX512 │ GCC8            │ 4,191  │ 1,405 │ 2.98      ║
-║ 64    │ AVX2   │ GCC8            │ 4,781  │ 1,441 │ 3.32      ║
-║ 64    │ SSSE3  │ GCC8            │ 3,263  │ 1,441 │ 2.26      ║
-║ 64    │ AVX512 │ Clang6          │ 4,203  │ 1,442 │ 2.91      ║
-║ 64    │ AVX2   │ Clang6          │ 4,890  │ 1,450 │ 3.37      ║
-║ 64    │ SSSE3  │ Clang6          │ 3,289  │ 1,390 │ 2.37      ║
-╚═══════╧════════╧═════════════════╧════════╧═══════╧═══════════╝
-
-Clang6-nointrin: __builtin_bswap16() called in a loop. The bswap builtin is only
-fast for 16-bit types; the other sizes are extremely slow. This appears to be
-from extensive and very tidy loop unrolling.
-```
+There's an AVX512 implementation that is disabled by default. On the Cascade
+Lake CPU that I tested on, it is ~28% faster than the AVX2 version when the data
+fit in the L1 cache. However, it is ~10% slower than the AVX2 version when the
+data come from L2 and ~15% slower from L3. Under the assumption that this module
+is more often used with arrays larger than 32KB, I've thus left it disabled.
+Sometime maybe I'll make it select between AVX2 and AVX512 depending on the
+array length, but this module has no ability to know if the data is resident in
+the L1 cache.
 
 ## Comparison to other libraries
 
