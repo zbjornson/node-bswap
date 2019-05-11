@@ -1,5 +1,6 @@
 # node-bswap
 [![Build Status](https://dev.azure.com/zbjornson/node-bswap/_apis/build/status/zbjornson.node-bswap)](https://dev.azure.com/zbjornson/node-bswap/_build/latest?definitionId=2)
+[![Build Status](https://cloud.drone.io/api/badges/zbjornson/node-bswap/status.svg)](https://cloud.drone.io/zbjornson/node-bswap)
 
 The fastest function to swap bytes (a.k.a. reverse the byte ordering, change
 endianness) of TypedArrays in-place for Node.js and browsers. Uses SIMD when

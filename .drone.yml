@@ -1,0 +1,12 @@
+kind: pipeline
+name: default
+
+platform:
+  arch: arm64
+
+steps:
+- name: arm64
+  image: node
+  commands:
+  - yarn install
+  - yarn test
