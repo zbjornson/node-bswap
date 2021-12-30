@@ -111,8 +111,18 @@ NAN_MODULE_INIT(Init) {
 	// run-time dispatch to pick a faster version.
 #ifdef _MSC_VER
 	// Warning: Do not put the ternary outside of the New. Performance will tank.
-	ft = Nan::New<v8::FunctionTemplate>(supportsAVX2() ? flipBytes<Vec256> : flipBytes<Vec128>);
+# ifdef BSWAP_USE_AVX512
+	ft = Nan::New<v8::FunctionTemplate>(
+		supportsAVX512BW() ? flipBytes<Vec512> :
+		supportsAVX2() ? flipBytes<Vec256> : flipBytes<Vec128>);
+	ise = Nan::New(
+		supportsAVX512BW() ? "AVX512" :
+		supportsAVX2() ? "AVX2" : "SSSE3");
+# else
+	ft = Nan::New<v8::FunctionTemplate>(
+		supportsAVX2() ? flipBytes<Vec256> : flipBytes<Vec128>);
 	ise = Nan::New(supportsAVX2() ? "AVX2" : "SSSE3");
+# endif // BSWAP_USE_AVX512
 #else
 	// GNU-compatible compilers have -march=native, and refuse to emit
 	// instructions from an instruction set less than the -m flags allow.

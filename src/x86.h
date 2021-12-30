@@ -67,9 +67,6 @@ public:
 	}
 };
 
-#ifndef _MSC_VER
-// v15.3 starts to have AVX-512 support, but my install doesn't have proper
-// zmmintrin intrinsics.
 class Vec512 {
 public:
 	__m512i v;
@@ -86,6 +83,5 @@ public:
 		_mm512_store_si512((void*)addr, v);
 	}
 };
-#endif // _MSC_VER
 
 #endif // __x86_64__
