@@ -29,12 +29,12 @@ function formatResult(event, times) {
 }
 
 var byteSizes = [
-	{label: "16 bit", Ctor: Uint16Array},
+	// {label: "16 bit", Ctor: Uint16Array},
 	{label: "32 bit", Ctor: Uint32Array},
-	{label: "64 bit", Ctor: Float64Array}
+	// {label: "64 bit", Ctor: Float64Array}
 ];
 
-var arrayLengths = [1, 10, 100, 1000, 10000];
+var arrayLengths = [10000];
 
 var methods = [
 	{label: "native", fn: bswap.native},
@@ -127,7 +127,9 @@ for (var s = 0; s < byteSizes.length; s++) {
 				.add({
 					name: method.label,
 					fn: function () {
+						%PrepareFunctionForOptimization(method.fn);
 						method.fn(input);
+						%OptimizeFunctionOnNextCall(method.fn);
 					}
 				})
 				.on("cycle", function (event) {

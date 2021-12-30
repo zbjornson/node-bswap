@@ -1,4 +1,6 @@
 #include <nan.h>
+#include <v8.h>
+#include "v8-fast-api-calls.h"
 #include <cstdint>
 #include <cstddef>
 
@@ -39,12 +41,9 @@ static inline void swap(uint32_t* val) { *val = BSWAP_INTRINSIC_4(*val); }
 static inline void swap(uint64_t* val) { *val = BSWAP_INTRINSIC_8(*val); }
 
 template<typename STYPE, class VTYPE>
-static void shuffle(v8::Local<v8::TypedArray> data_ta) {
-	Nan::TypedArrayContents<STYPE> data(data_ta);
-	uint8_t* bytes = reinterpret_cast<uint8_t*>(*data);
-
-	size_t byteLength = data_ta->ByteLength();
-	size_t elemLength = byteLength / sizeof(STYPE);
+static void shuffle(STYPE* data, size_t elemLength) {
+	uint8_t* bytes = reinterpret_cast<uint8_t*>(data);
+	size_t byteLength = elemLength * sizeof(STYPE);
 	size_t byteIdx = 0;
 	size_t elemIdx = 0;
 	size_t vectSize = VTYPE::size();
@@ -52,7 +51,7 @@ static void shuffle(v8::Local<v8::TypedArray> data_ta) {
 	// 1. Head: Scalar until aligned.
 	size_t preLength = (vectSize - ((uintptr_t)(void *)(bytes) % vectSize)) / sizeof(STYPE);
 	if (elemLength < preLength) preLength = elemLength;
-	while (elemIdx < preLength) swap(&(*data)[elemIdx++]);
+	while (elemIdx < preLength) swap(&data[elemIdx++]);
 	byteIdx = elemIdx * sizeof(STYPE);
 
 	VTYPE mask = VTYPE::template getMask<STYPE>();
@@ -80,25 +79,35 @@ static void shuffle(v8::Local<v8::TypedArray> data_ta) {
 
 	// 4. Tail B: scalar until end
 	elemIdx = byteIdx / sizeof(STYPE);
-	while (elemIdx < elemLength) swap(&(*data)[elemIdx++]);
+	while (elemIdx < elemLength) swap(&data[elemIdx++]);
 }
 
 template <class VTYPE>
-NAN_METHOD(flipBytes) {
+static void flipBytes(const v8::FunctionCallbackInfo<v8::Value>& info) {
 	// consider this to warm up the wider registers:
 	// asm volatile("vxorps ymm0, ymm0, ymm0" : : "ymm0")
 	v8::Local<v8::Value> arr = info[0];
 	if (arr->IsInt16Array() || arr->IsUint16Array()) {
-		shuffle<uint16_t, VTYPE>(arr.As<v8::TypedArray>());
+		Nan::TypedArrayContents<uint16_t> data(arr.As<v8::TypedArray>());
+		shuffle<uint16_t, VTYPE>(*data, data.length());
 	} else if (arr->IsFloat32Array() || arr->IsInt32Array() || arr->IsUint32Array()) {
-		shuffle<uint32_t, VTYPE>(arr.As<v8::TypedArray>());
+		Nan::TypedArrayContents<uint32_t> data(arr.As<v8::TypedArray>());
+		shuffle<uint32_t, VTYPE>(*data, data.length());
 	} else if (arr->IsFloat64Array()) {
-		shuffle<uint64_t, VTYPE>(arr.As<v8::TypedArray>());
+		Nan::TypedArrayContents<uint64_t> data(arr.As<v8::TypedArray>());
+		shuffle<uint64_t, VTYPE>(*data, data.length());
 	} else if (arr->IsInt8Array() || arr->IsUint8Array() || arr->IsUint8ClampedArray()) {
 		// noop
 	} else {
 		Nan::ThrowTypeError("Expected typed array");
 	}
+}
+
+template <class VTYPE, typename T>
+static void fastFlipBytes(const v8::FastApiTypedArray<T>& arr) {
+	printf("Fast!");
+	assert(arr.data_);
+	shuffle<T, VTYPE>(reinterpret_cast<T*>(arr.data_), arr.length());
 }
 
 NAN_MODULE_INIT(Init) {
@@ -119,8 +128,18 @@ NAN_MODULE_INIT(Init) {
 		supportsAVX512BW() ? "AVX512" :
 		supportsAVX2() ? "AVX2" : "SSSE3");
 # else
-	ft = Nan::New<v8::FunctionTemplate>(
-		supportsAVX2() ? flipBytes<Vec256> : flipBytes<Vec128>);
+	ft = v8::FunctionTemplate::New(
+		v8::Isolate::GetCurrent(),
+		flipBytes<Vec256>, // SlowCallback
+		v8::Local<v8::Value>(), // data
+		v8::Local<v8::Signature>(),
+		1,
+		v8::ConstructorBehavior::kThrow,
+		v8::SideEffectType::kHasSideEffect,
+		&v8::CFunction::Make(fastFlipBytes<Vec256, uint32_t>));
+
+	// ft = Nan::New<v8::FunctionTemplate>(
+	// 	supportsAVX2() ? flipBytes<Vec256> : flipBytes<Vec128>);
 	ise = Nan::New(supportsAVX2() ? "AVX2" : "SSSE3");
 # endif // BSWAP_USE_AVX512
 #else
