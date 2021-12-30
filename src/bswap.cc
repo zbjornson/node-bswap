@@ -1,5 +1,6 @@
 #include <nan.h>
-#include <stdint.h>
+#include <cstdint>
+#include <cstddef>
 
 ///// Min compiler support and bswap intrins used in scalar region
 #if defined(__GNUC__) // GCC, clang
@@ -22,6 +23,13 @@
 # define BSWAP_INTRINSIC_4(x) _byteswap_ulong(x);
 # define BSWAP_INTRINSIC_8(x) _byteswap_uint64(x);
 #endif // _MSC_VER
+
+using std::uint8_t;
+using std::uint16_t;
+using std::uint32_t;
+using std::uint64_t;
+using std::size_t;
+using std::uintptr_t;
 
 #include "x86.h"
 #include "neon.h"
