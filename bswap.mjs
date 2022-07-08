@@ -1,7 +1,7 @@
 /** @typedef {Uint8Array|Int8Array|Uint8ClampedArray} TypedArray8 */
 /** @typedef {Uint16Array|Int16Array} TypedArray16 */
 /** @typedef {Uint32Array|Int32Array|Float32Array} TypedArray32 */
-/** @typedef {Float64Array} TypedArray64 */
+/** @typedef {BigInt64Array|BigUint64Array|Float64Array} TypedArray64 */
 
 /**
  * The implementation used.

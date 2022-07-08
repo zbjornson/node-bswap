@@ -64,6 +64,30 @@ const tests = [
 		assert.deepStrictEqual(x, expect);
 	}},
 
+	{label: "Flips BigInt64Array", test: function () {
+		const x = new Uint8Array(256 * 8);
+		const expect = new Uint8Array(256 * 8);
+		for (let i = 0; i < x.length; i++) {
+			x[i] = i % 8;
+			expect[expect.length - i - 1] = i % 8;
+		}
+		var y = new BigInt64Array(x.buffer, x.byteOffset, 256);
+		bswapFn(y);
+		assert.deepStrictEqual(x, expect);
+	}},
+
+	{label: "Flips BigUint64Array", test: function () {
+		const x = new Uint8Array(256 * 8);
+		const expect = new Uint8Array(256 * 8);
+		for (let i = 0; i < x.length; i++) {
+			x[i] = i % 8;
+			expect[expect.length - i - 1] = i % 8;
+		}
+		var y = new BigUint64Array(x.buffer, x.byteOffset, 256);
+		bswapFn(y);
+		assert.deepStrictEqual(x, expect);
+	}},
+
 	{label: "Does not touch surrounding memory", test: function () {
 		// Node buffers can come from a shared pool, and typed arrays
 		// can reference the same ArrayBuffer. Vectorized code works on

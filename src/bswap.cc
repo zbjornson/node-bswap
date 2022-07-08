@@ -92,7 +92,11 @@ NAN_METHOD(flipBytes) {
 		shuffle<uint16_t, VTYPE>(arr.As<v8::TypedArray>());
 	} else if (arr->IsFloat32Array() || arr->IsInt32Array() || arr->IsUint32Array()) {
 		shuffle<uint32_t, VTYPE>(arr.As<v8::TypedArray>());
-	} else if (arr->IsFloat64Array()) {
+	} else if (arr->IsFloat64Array()
+#if (NODE_MODULE_VERSION >= 64)
+		|| arr->IsBigInt64Array() || arr->IsBigUint64Array()
+#endif
+	) {
 		shuffle<uint64_t, VTYPE>(arr.As<v8::TypedArray>());
 	} else if (arr->IsInt8Array() || arr->IsUint8Array() || arr->IsUint8ClampedArray()) {
 		// noop

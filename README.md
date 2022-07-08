@@ -5,8 +5,9 @@ ARM: [![ARM Build Status](https://cloud.drone.io/api/badges/zbjornson/node-bswap
 
 The fastest function to swap bytes (a.k.a. reverse the byte ordering, change
 endianness) of TypedArrays in-place for Node.js and browsers. Uses SIMD when
-available. Works with all of the TypedArray types. Also works on Buffers if you
-construct a TypedArray view on the underlying ArrayBuffer (see below).
+available. Works with all of the TypedArray types, including BigUint64Array and
+BigInt64Array. Also works on Buffers if you construct a TypedArray view on the
+underlying ArrayBuffer (see below).
 
 Install:
 ```
@@ -74,13 +75,6 @@ does not.)
 | GCC 8.1   |  6,528 | (same) |     36.5x |   1,790 |        3.6x |
 | Clang 6   |  6,598 | (same) |     36.9x |  (same) |        3.7x |
 | GCC-ARM   |    382 |     49 |      7.8x |     213 |        1.8x |
-
-### Optimization notes
-
-Despite how simple this procedure is, it is very difficult to get all compilers
-to produce optimal code for all instruction sets. (In particular, GCC and clang
-seem to have inherent optimizations for swapping 16-bit types, which can
-conflict with my own optimizations; and they unroll loops to different degrees.)
 
 There's an AVX512 implementation that is disabled by default. On the Cascade
 Lake CPU that I tested on, it is ~28% faster than the AVX2 version when the data
