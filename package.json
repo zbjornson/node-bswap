@@ -4,7 +4,7 @@
   "description": "fast byte swapping",
   "main": "bswap.js",
   "scripts": {
-    "test": "mocha test/*.js"
+    "test": "mocha test/*.mjs"
   },
   "repository": "zbjornson/node-bswap",
   "keywords": [
@@ -28,8 +28,7 @@
     "nan": "^2.16.0"
   },
   "devDependencies": {
-    "chai": "^3.5.0",
-    "mocha": "^2.5.3"
+    "mocha": "^10.0.0"
   },
   "browser": {
     "./build/Release/bswap": false

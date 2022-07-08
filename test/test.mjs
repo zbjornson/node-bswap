@@ -1,5 +1,5 @@
-const {assert} = require("chai");
-const bswap = require("../bswap.js");
+import assert from "assert";
+import * as bswap from "../bswap.mjs";
 let bswapFn;
 
 const tests = [
@@ -8,7 +8,7 @@ const tests = [
 		const expect = new Uint32Array(258).fill(0x03040102);
 		const y = new Int16Array(x.buffer, x.byteOffset, 516);
 		bswapFn(y);
-		assert.deepEqual(x, expect);
+		assert.deepStrictEqual(x, expect);
 	}},
 
 	{label: "Flips Uint16Array", test: function () {
@@ -16,7 +16,7 @@ const tests = [
 		const expect = new Uint32Array(258).fill(0x03040102);
 		const y = new Uint16Array(x.buffer, x.byteOffset, 516);
 		bswapFn(y);
-		assert.deepEqual(x, expect);
+		assert.deepStrictEqual(x, expect);
 	}},
 
 	{label: "Flips Float32Array", test: function () {
@@ -24,7 +24,7 @@ const tests = [
 		const expect = new Uint32Array(258).fill(0x01020304);
 		const y = new Float32Array(x.buffer, x.byteOffset, 258);
 		bswapFn(y);
-		assert.deepEqual(x, expect);
+		assert.deepStrictEqual(x, expect);
 	}},
 
 	{label: "Flips Float32Array (unaligned)", test: function () {
@@ -33,7 +33,7 @@ const tests = [
 		const temp = new Uint32Array(expect.buffer, expect.byteOffset + 4, 257).fill(0x01020304);
 		const y = new Float32Array(x.buffer, x.byteOffset + 4, 257);
 		bswapFn(y);
-		assert.deepEqual(x, expect);
+		assert.deepStrictEqual(x, expect);
 	}},
 
 	{label: "Flips Int32Array", test: function () {
@@ -41,7 +41,7 @@ const tests = [
 		const expect = new Uint32Array(258).fill(0x01020304);
 		const y = new Int32Array(x.buffer, x.byteOffset, 258);
 		bswapFn(y);
-		assert.deepEqual(x, expect);
+		assert.deepStrictEqual(x, expect);
 	}},
 
 	{label: "Flips Uint32Array", test: function () {
@@ -49,7 +49,7 @@ const tests = [
 		const expect = new Uint32Array(258).fill(0x01020304);
 		const y = new Uint32Array(x.buffer, x.byteOffset, 258);
 		bswapFn(y);
-		assert.deepEqual(x, expect);
+		assert.deepStrictEqual(x, expect);
 	}},
 
 	{label: "Flips Float64Array", test: function () {
@@ -61,7 +61,7 @@ const tests = [
 		}
 		var y = new Float64Array(x.buffer, x.byteOffset, 256);
 		bswapFn(y);
-		assert.deepEqual(x, expect);
+		assert.deepStrictEqual(x, expect);
 	}},
 
 	{label: "Does not touch surrounding memory", test: function () {
@@ -72,35 +72,35 @@ const tests = [
 		const sub = a.subarray(0, 3);
 		const expect = new Uint16Array([256, 512, 768, 4, 5, 6, 7, 8]);
 		bswapFn(sub);
-		assert.deepEqual(a, expect);
+		assert.deepStrictEqual(a, expect);
 	}},
 
 	{label: "Does nothing to an Int8Array", test: function () {
 		const x = new Int8Array([4, 210]);
 		const expect = new Int8Array([4, 210]);
 		bswapFn(x);
-		assert.deepEqual(x, expect);
+		assert.deepStrictEqual(x, expect);
 	}},
 
 	{label: "Does nothing to a Uint8Array", test: function () {
 		const x = new Uint8Array([4, 210]);
 		const expect = new Uint8Array([4, 210]);
 		bswapFn(x);
-		assert.deepEqual(x, expect);
+		assert.deepStrictEqual(x, expect);
 	}},
 
 	{label: "Does nothing to a Uint8ClampedArray", test: function () {
 		const x = new Uint8ClampedArray([4, 210]);
 		const expect = new Uint8ClampedArray([4, 210]);
 		bswapFn(x);
-		assert.deepEqual(x, expect);
+		assert.deepStrictEqual(x, expect);
 	}}
 ];
 
 describe("Native", function () {
 	before(function () {
 		bswapFn = bswap.native;
-		console.log("ISE:", bswap.ise);
+		console.log(`Testing ${bswap.ise} instruction set.`);
 	});
 
 	for (let i = 0; i < tests.length; i++) {
@@ -118,9 +118,15 @@ describe("JS", function () {
 	}
 });
 
-it("Throws for non-TypedArray input", function () {
-	assert.throws(() => bswap([]), TypeError);
-	assert.throws(() => bswap(1), TypeError);
-	assert.throws(() => bswap("a"), TypeError);
-	assert.throws(() => bswap({}), TypeError);
+describe("General", function () {
+	it("Throws for non-TypedArray input", function () {
+		assert.throws(() => bswap([]), TypeError);
+		assert.throws(() => bswap(1), TypeError);
+		assert.throws(() => bswap("a"), TypeError);
+		assert.throws(() => bswap({}), TypeError);
+	});
+
+	it("Defines ise constant", function () {
+		assert(typeof bswap.ise === "string");
+	});
 });

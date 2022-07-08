@@ -15,7 +15,7 @@ $ npm install bswap
 
 Use:
 ```js
-const bswap = require("bswap");
+import bswap from "bswap";
 const x = new Uint16Array([1, 2, 3, 4, 5, 6, 7, 8]);
 bswap(x);
 // now: Uint16Array [ 256, 512, 768, 1024, 1280, 1536, 1792, 2048 ]
@@ -31,7 +31,7 @@ In Node.js when native code and a recent x86 or ARM processor is available, this
 library uses the fastest available SIMD instructions ([PSHUFB (SSSE3) or VPSHUFB
 (AVX2)](http://www.felixcloutier.com/x86/PSHUFB.html), [REVn
 (NEON)](http://infocenter.arm.com/help/index.jsp?topic=/com.arm.doc.dui0489h/Cihjgdid.html)),
-which allow processing multiple array elements simultaneously for maximum speed.
+which process multiple array elements simultaneously.
 
 Native code requires one of:
 * MSVC 2015 or later
@@ -44,7 +44,7 @@ the fastest JavaScript implementation. The JavaScript implementation is also
 always explicitly available:
 
 ```js
-const bswap = require("bswap").js; // Use javascript implementation explicitly
+import {js} from "bswap"; // Use javascript implementation explicitly
 ```
 
 ## Benchmarks

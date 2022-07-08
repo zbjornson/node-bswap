@@ -142,8 +142,8 @@ NAN_MODULE_INIT(Init) {
 # endif
 #endif
 
-	Nan::Set(target, Nan::New("flipBytes").ToLocalChecked(), Nan::GetFunction(ft).ToLocalChecked());
-	Nan::Set(target, Nan::New("ISE").ToLocalChecked(), ise.ToLocalChecked());
+	Nan::Set(target, Nan::New("bswap").ToLocalChecked(), Nan::GetFunction(ft).ToLocalChecked());
+	Nan::Set(target, Nan::New("ise").ToLocalChecked(), ise.ToLocalChecked());
 }
 
 NODE_MODULE(bswap, Init);
