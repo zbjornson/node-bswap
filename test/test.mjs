@@ -1,5 +1,5 @@
 import assert from "assert";
-import * as bswap from "../bswap.mjs";
+import defaultExport, * as bswap from "../node.mjs";
 let bswapFn;
 
 const tests = [
@@ -152,5 +152,9 @@ describe("General", function () {
 
 	it("Defines ise constant", function () {
 		assert(typeof bswap.ise === "string");
+	});
+
+	it("Defines default fn", function () {
+		assert(typeof defaultExport === "function");
 	});
 });

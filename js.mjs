@@ -3,30 +3,10 @@
 /** @typedef {Uint32Array|Int32Array|Float32Array} TypedArray32 */
 /** @typedef {BigInt64Array|BigUint64Array|Float64Array} TypedArray64 */
 
-/**
- * The implementation used.
- * @type {"JS"|"SSSE3"|"AVX2"|"AVX512"|"NEON"}
- */
-export let ise = "JS";
-
-/** Swaps the bytes of the input TypedArray using the fastest available method. */
-export let bswap = bswapJS;
-/** Swaps the bytes of the input TypedArray using the JavaScript implementation. */
+export default bswapJS;
+export const native = undefined;
+export const ise = "JS";
 export const js = bswapJS;
-/**
- * Swaps the bytes of the input TypedArray using the C++ implementation.
- * @type {typeof bswapJS|undefined}
- */
-export let native = undefined;
-
-try {
-	const mod = {exports: {}};
-	process.dlopen(mod, "./build/Release/bswap.node"/*, 2=RTLD_NOW*/);
-	bswap = native = mod.exports.bswap;
-	ise = mod.exports.ise;
-} catch (err) {
-	console.log(err);
-}
 
 /** @param {TypedArray8|TypedArray16|TypedArray32|TypedArray64} arr */
 function bswapJS(arr) {

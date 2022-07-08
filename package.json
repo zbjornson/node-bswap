@@ -2,7 +2,8 @@
   "name": "bswap",
   "version": "2.0.1",
   "description": "fast byte swapping",
-  "main": "bswap.mjs",
+  "main": "node.mjs",
+  "browser": "js.mjs",
   "scripts": {
     "test": "mocha test/*.mjs"
   },
@@ -30,12 +31,11 @@
   "devDependencies": {
     "mocha": "^10.0.0"
   },
-  "browser": {
-    "./build/Release/bswap": false
-  },
   "files": [
     "binding.gyp",
     "src/",
-    "bswap.mjs"
+    "index.d.ts",
+    "node.mjs",
+    "js.mjs"
   ]
 }
