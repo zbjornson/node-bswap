@@ -7,7 +7,6 @@
         "<!(node -e \"require('nan')\")"
       ],
       "cflags":[
-        "-march=native",
         "-falign-loops=32", # See readme; significant improvement for some cases
         "-Wno-unused-function", # CPU feature detection only used on Win
         "-Wno-unused-const-variable", # cpuid regs
@@ -21,11 +20,22 @@
       },
       "xcode_settings": {
         "OTHER_CPLUSPLUSFLAGS": [
-          "-march=native",
           "-Wno-unused-function", # CPU feature detection only used on Win
           "-Wno-unused-const-variable"
         ]
-      }
+      },
+      "conditions": [
+        ['target_arch != "arm64"', {
+          "cflags": [
+            "-march=native"
+          ],
+          "xcode_settings" : {
+            "OTHER_CPLUSPLUSFLAGS": [
+              "-march=native"
+            ]
+          }
+        }]
+      ]
     }
   ]
 }
