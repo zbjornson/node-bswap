@@ -1,4 +1,4 @@
-#include <nan.h>
+#include "napi.h"
 #include <cstdint>
 #include <cstddef>
 
@@ -39,19 +39,17 @@ static inline void swap(uint32_t* val) { *val = BSWAP_INTRINSIC_4(*val); }
 static inline void swap(uint64_t* val) { *val = BSWAP_INTRINSIC_8(*val); }
 
 template<typename STYPE, class VTYPE>
-static void shuffle(v8::Local<v8::TypedArray> data_ta) {
-	Nan::TypedArrayContents<STYPE> data(data_ta);
+static void shuffle(STYPE* data, size_t elemLength) {
+	uint8_t* bytes = reinterpret_cast<uint8_t*>(data);
 
-	size_t byteLength = data_ta->ByteLength();
-	size_t elemLength = byteLength / sizeof(STYPE);
 	size_t elemIdx = 0;
 	constexpr size_t vectSize = VTYPE::size();
 
 	// 1. Head: Scalar until aligned to SIMD register. Not optimized for buffers
 	//    < VTYPE::size() bytes, where we could use narrower vectors than the
 	//    widest supported by the ISA.
-	while ((reinterpret_cast<uintptr_t>((*data) + elemIdx) % vectSize) && elemIdx < elemLength) {
-		swap(&(*data)[elemIdx++]);
+	while ((reinterpret_cast<uintptr_t>(data + elemIdx) % vectSize) && elemIdx < elemLength) {
+		swap(&data[elemIdx++]);
 	}
 
 	VTYPE mask = VTYPE::template getMask<STYPE>();
@@ -60,52 +58,73 @@ static void shuffle(v8::Local<v8::TypedArray> data_ta) {
 	constexpr size_t elemsPerVec = vectSize / sizeof(STYPE);
 	constexpr size_t elemsPerIter = 8 * elemsPerVec;
 	while (elemIdx + elemsPerIter < elemLength) {
-		VTYPE::swap(&(*data)[elemIdx + 0 * elemsPerVec], mask);
-		VTYPE::swap(&(*data)[elemIdx + 1 * elemsPerVec], mask);
-		VTYPE::swap(&(*data)[elemIdx + 2 * elemsPerVec], mask);
-		VTYPE::swap(&(*data)[elemIdx + 3 * elemsPerVec], mask);
-		VTYPE::swap(&(*data)[elemIdx + 4 * elemsPerVec], mask);
-		VTYPE::swap(&(*data)[elemIdx + 5 * elemsPerVec], mask);
-		VTYPE::swap(&(*data)[elemIdx + 6 * elemsPerVec], mask);
-		VTYPE::swap(&(*data)[elemIdx + 7 * elemsPerVec], mask);
+		VTYPE::swap(&data[elemIdx + 0 * elemsPerVec], mask);
+		VTYPE::swap(&data[elemIdx + 1 * elemsPerVec], mask);
+		VTYPE::swap(&data[elemIdx + 2 * elemsPerVec], mask);
+		VTYPE::swap(&data[elemIdx + 3 * elemsPerVec], mask);
+		VTYPE::swap(&data[elemIdx + 4 * elemsPerVec], mask);
+		VTYPE::swap(&data[elemIdx + 5 * elemsPerVec], mask);
+		VTYPE::swap(&data[elemIdx + 6 * elemsPerVec], mask);
+		VTYPE::swap(&data[elemIdx + 7 * elemsPerVec], mask);
 		elemIdx += elemsPerIter;
 	}
 
 	// 3. Tail A: vectors without unrolling
 	while (elemIdx + elemsPerVec < elemLength) {
-		VTYPE::swap(&(*data)[elemIdx], mask);
+		VTYPE::swap(data + elemIdx, mask);
 		elemIdx += vectSize / sizeof(STYPE);
 	}
 
 	// 4. Tail B: scalar until end
-	while (elemIdx < elemLength) swap(&(*data)[elemIdx++]);
+	while (elemIdx < elemLength) swap(&data[elemIdx++]);
 }
 
 template <class VTYPE>
-NAN_METHOD(flipBytes) {
-	// consider this to warm up the wider registers:
+void flipBytes(const Napi::CallbackInfo& info) {
+	// TODO(perf): consider this to warm up the wider registers:
 	// asm volatile("vxorps ymm0, ymm0, ymm0" : : "ymm0")
-	v8::Local<v8::Value> arr = info[0];
-	if (arr->IsInt16Array() || arr->IsUint16Array()) {
-		shuffle<uint16_t, VTYPE>(arr.As<v8::TypedArray>());
-	} else if (arr->IsFloat32Array() || arr->IsInt32Array() || arr->IsUint32Array()) {
-		shuffle<uint32_t, VTYPE>(arr.As<v8::TypedArray>());
-	} else if (arr->IsFloat64Array()
-#if (NODE_MODULE_VERSION >= 64)
-		|| arr->IsBigInt64Array() || arr->IsBigUint64Array()
-#endif
-	) {
-		shuffle<uint64_t, VTYPE>(arr.As<v8::TypedArray>());
-	} else if (arr->IsInt8Array() || arr->IsUint8Array() || arr->IsUint8ClampedArray()) {
-		// noop
-	} else {
-		Nan::ThrowTypeError("Expected typed array");
+
+	if (!info[0].IsTypedArray()) {
+		Napi::Error::New(info.Env(), "Expected typed array").ThrowAsJavaScriptException();
+		return;
+	}
+
+	auto arr = info[0].As<Napi::TypedArray>();
+	napi_typedarray_type type;
+	size_t elemLength;
+	void* data;
+	napi_status ok = napi_get_typedarray_info(
+		info.Env(), arr, &type, &elemLength, &data, nullptr, nullptr);
+	if (ok != napi_ok) {
+		Napi::Error::New(info.Env(), "Failed to get typed array info").ThrowAsJavaScriptException();
+		return;
+	}
+
+	switch (type) {
+		case napi_int16_array:
+		case napi_uint16_array:
+			return shuffle<uint16_t, VTYPE>(reinterpret_cast<uint16_t*>(data), elemLength);
+		case napi_int32_array:
+		case napi_uint32_array:
+		case napi_float32_array:
+			return shuffle<uint32_t, VTYPE>(reinterpret_cast<uint32_t*>(data), elemLength);
+		case napi_float64_array:
+#if (NAPI_VERSION > 5)
+		case napi_bigint64_array:
+		case napi_biguint64_array:
+#endif  // (NAPI_VERSION > 5)
+			return shuffle<uint64_t, VTYPE>(reinterpret_cast<uint64_t*>(data), elemLength);
+		case napi_int8_array:
+		case napi_uint8_array:
+		case napi_uint8_clamped_array:
+		default:
+			return;
 	}
 }
 
-NAN_MODULE_INIT(Init) {
-	v8::Local<v8::FunctionTemplate> ft;
-	v8::MaybeLocal<v8::String> ise;
+Napi::Object Init(Napi::Env env, Napi::Object exports) {
+	Napi::Function fn;
+	Napi::String ise;
 
 	// MSVC doesn't have any equivalent to -march=native, but it will emit
 	// instructions from any instruction set when intrinsics are used. This lets
@@ -114,38 +133,39 @@ NAN_MODULE_INIT(Init) {
 #ifdef _MSC_VER
 	// Warning: Do not put the ternary outside of the New. Performance will tank.
 # ifdef BSWAP_USE_AVX512
-	ft = Nan::New<v8::FunctionTemplate>(
+	fn = Napi::Function::New(env,
 		supportsAVX512BW() ? flipBytes<Vec512> :
 		supportsAVX2() ? flipBytes<Vec256> : flipBytes<Vec128>);
-	ise = Nan::New(
-		supportsAVX512BW() ? "AVX512" :
-		supportsAVX2() ? "AVX2" : "SSSE3");
+	ise = Napi::String::New(env,
+		supportsAVX512BW() ? "AVX512" : supportsAVX2() ? "AVX2" : "SSSE3");
 # else
-	ft = Nan::New<v8::FunctionTemplate>(
+	fn = Napi::Function::New(env,
 		supportsAVX2() ? flipBytes<Vec256> : flipBytes<Vec128>);
-	ise = Nan::New(supportsAVX2() ? "AVX2" : "SSSE3");
+	ise = Napi::String::New(env,
+		supportsAVX2() ? "AVX2" : "SSSE3");
 # endif // BSWAP_USE_AVX512
 #else
 	// GNU-compatible compilers have -march=native, and refuse to emit
 	// instructions from an instruction set less than the -m flags allow.
 # if defined(__AVX512BW__) && defined(BSWAP_USE_AVX512)
 	// Disabled by default because it is slower than AVX2.
-	ft = Nan::New<v8::FunctionTemplate>(flipBytes<Vec512>);
-	ise = Nan::New("AVX512");
+	fn = Napi::Function::New(env, flipBytes<Vec512>);
+	ise = Napi::String::New(env, "AVX512");
 # elif defined(__AVX2__)
-	ft = Nan::New<v8::FunctionTemplate>(flipBytes<Vec256>);
-	ise = Nan::New("AVX2");
+	fn = Napi::Function::New(env, flipBytes<Vec256>);
+	ise = Napi::String::New(env, "AVX2");
 # elif defined(__SSSE3__)
-	ft = Nan::New<v8::FunctionTemplate>(flipBytes<Vec128>);
-	ise = Nan::New("SSSE3");
+	fn = Napi::Function::New(env, flipBytes<Vec128>);
+	ise = Napi::String::New(env, "SSSE3");
 # elif defined(__ARM_NEON)
-	ft = Nan::New<v8::FunctionTemplate>(flipBytes<VecNeon>);
-	ise = Nan::New("NEON");
+	fn = Napi::Function::New(env, flipBytes<VecNeon>);
+	ise = Napi::String::New(env, "NEON");
 # endif
 #endif
 
-	Nan::Set(target, Nan::New("bswap").ToLocalChecked(), Nan::GetFunction(ft).ToLocalChecked());
-	Nan::Set(target, Nan::New("ise").ToLocalChecked(), ise.ToLocalChecked());
+	exports.Set(Napi::String::New(env, "bswap"), fn);
+	exports.Set(Napi::String::New(env, "ise"), ise);
+	return exports;
 }
 
-NODE_MODULE(bswap, Init);
+NODE_API_MODULE(bswap, Init);

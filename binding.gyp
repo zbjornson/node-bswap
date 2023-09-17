@@ -4,13 +4,16 @@
       "target_name": "bswap",
       "sources": [ "src/bswap.cc" ],
       "include_dirs" : [
-        "<!(node -e \"require('nan')\")"
+        "<!(node -p \"require('node-addon-api').include_dir\")"
+      ],
+      "defines": [
+          "NAPI_DISABLE_CPP_EXCEPTIONS"
       ],
       "cflags":[
+        "-fvisibility=hidden",
         "-falign-loops=32", # See readme; significant improvement for some cases
         "-Wno-unused-function", # CPU feature detection only used on Win
-        "-Wno-unused-const-variable", # cpuid regs
-        "-Wno-cast-function-type" # https://github.com/nodejs/nan/issues/807
+        "-Wno-unused-const-variable" # cpuid regs
       ],
       "msvs_settings": {
         "VCCLCompilerTool": {
@@ -20,9 +23,13 @@
       },
       "xcode_settings": {
         "OTHER_CPLUSPLUSFLAGS": [
+          "-fvisibility=hidden",
           "-Wno-unused-function", # CPU feature detection only used on Win
           "-Wno-unused-const-variable"
-        ]
+        ],
+        "xcode_settings": {
+          "GCC_SYMBOLS_PRIVATE_EXTERN": "YES", # -fvisibility=hidden
+        }
       },
       "conditions": [
         ['target_arch != "arm64"', {
