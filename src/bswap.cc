@@ -41,45 +41,43 @@ static inline void swap(uint64_t* val) { *val = BSWAP_INTRINSIC_8(*val); }
 template<typename STYPE, class VTYPE>
 static void shuffle(v8::Local<v8::TypedArray> data_ta) {
 	Nan::TypedArrayContents<STYPE> data(data_ta);
-	uint8_t* bytes = reinterpret_cast<uint8_t*>(*data);
 
 	size_t byteLength = data_ta->ByteLength();
 	size_t elemLength = byteLength / sizeof(STYPE);
-	size_t byteIdx = 0;
 	size_t elemIdx = 0;
-	size_t vectSize = VTYPE::size();
+	constexpr size_t vectSize = VTYPE::size();
 
-	// 1. Head: Scalar until aligned.
-	size_t preLength = (vectSize - ((uintptr_t)(void *)(bytes) % vectSize)) / sizeof(STYPE);
-	if (elemLength < preLength) preLength = elemLength;
-	while (elemIdx < preLength) swap(&(*data)[elemIdx++]);
-	byteIdx = elemIdx * sizeof(STYPE);
+	// 1. Head: Scalar until aligned to SIMD register. Not optimized for buffers
+	//    < VTYPE::size() bytes, where we could use narrower vectors than the
+	//    widest supported by the ISA.
+	while ((reinterpret_cast<uintptr_t>((*data) + elemIdx) % vectSize) && elemIdx < elemLength) {
+		swap(&(*data)[elemIdx++]);
+	}
 
 	VTYPE mask = VTYPE::template getMask<STYPE>();
 
 	// 2. Main body: vectors unrolled by 8
-	size_t unrolledEndIdx = byteLength - ((byteLength - byteIdx) % (vectSize * 8));
-	while (byteIdx < unrolledEndIdx) {
-		VTYPE::swap(&bytes[byteIdx + 0 * vectSize], mask);
-		VTYPE::swap(&bytes[byteIdx + 1 * vectSize], mask);
-		VTYPE::swap(&bytes[byteIdx + 2 * vectSize], mask);
-		VTYPE::swap(&bytes[byteIdx + 3 * vectSize], mask);
-		VTYPE::swap(&bytes[byteIdx + 4 * vectSize], mask);
-		VTYPE::swap(&bytes[byteIdx + 5 * vectSize], mask);
-		VTYPE::swap(&bytes[byteIdx + 6 * vectSize], mask);
-		VTYPE::swap(&bytes[byteIdx + 7 * vectSize], mask);
-		byteIdx += 8 * vectSize;
+	constexpr size_t elemsPerVec = vectSize / sizeof(STYPE);
+	constexpr size_t elemsPerIter = 8 * elemsPerVec;
+	while (elemIdx + elemsPerIter < elemLength) {
+		VTYPE::swap(&(*data)[elemIdx + 0 * elemsPerVec], mask);
+		VTYPE::swap(&(*data)[elemIdx + 1 * elemsPerVec], mask);
+		VTYPE::swap(&(*data)[elemIdx + 2 * elemsPerVec], mask);
+		VTYPE::swap(&(*data)[elemIdx + 3 * elemsPerVec], mask);
+		VTYPE::swap(&(*data)[elemIdx + 4 * elemsPerVec], mask);
+		VTYPE::swap(&(*data)[elemIdx + 5 * elemsPerVec], mask);
+		VTYPE::swap(&(*data)[elemIdx + 6 * elemsPerVec], mask);
+		VTYPE::swap(&(*data)[elemIdx + 7 * elemsPerVec], mask);
+		elemIdx += elemsPerIter;
 	}
 
 	// 3. Tail A: vectors without unrolling
-	size_t vectEndIdx = byteLength - ((byteLength - byteIdx) % vectSize);
-	while (byteIdx < vectEndIdx) {
-		VTYPE::swap(&bytes[byteIdx], mask);
-		byteIdx += vectSize;
+	while (elemIdx + elemsPerVec < elemLength) {
+		VTYPE::swap(&(*data)[elemIdx], mask);
+		elemIdx += vectSize / sizeof(STYPE);
 	}
 
 	// 4. Tail B: scalar until end
-	elemIdx = byteIdx / sizeof(STYPE);
 	while (elemIdx < elemLength) swap(&(*data)[elemIdx++]);
 }
 
