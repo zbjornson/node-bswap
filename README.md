@@ -34,12 +34,6 @@ library uses the fastest available SIMD instructions ([PSHUFB (SSSE3) or VPSHUFB
 (NEON)](http://infocenter.arm.com/help/index.jsp?topic=/com.arm.doc.dui0489h/Cihjgdid.html)),
 which process multiple array elements simultaneously.
 
-Native code requires one of:
-* MSVC 2015 or later
-* Clang 3.4.x or later
-* GCC 4.8.x or later
-* ICC 16 or later
-
 In the browser or when native code is unavailable, this library falls back to
 the fastest JavaScript implementation. The JavaScript implementation is also
 always explicitly available:
@@ -52,28 +46,28 @@ import {js} from "bswap"; // Use javascript implementation explicitly
 
 Showing millions of elements processed per second when invoked with a
 10,000-element array. (Run the benchmark suite to see results for varying array
-lengths and other libraries.) Ran on an Intel i7-7700HQ 2.80 GHz processor (AVX2
-supported) or Cavium ThunderX 2.0 GHz processor (ARM NEON); Node.js v8.x;
-Windows 10 (MSVC) or Ubuntu 16.04 (GCC, Clang). (Note that a 10,000-element
+lengths and other libraries.) Ran on an Intel i9-11900H 2.50 GHz processor (AVX2
+supported) or Cavium ThunderX 2.0 GHz processor (ARM NEON); Node.js v16.x;
+Windows 11 (MSVC) or Ubuntu 20.04 (GCC, Clang). (Note that a 10,000-element
 Int16Array fits in L1 cache, whereas a 10,000-element Int32Array or Float64Array
 does not.)
 
 | compiler  |    C++ |   JS   | Native:JS | Node.js | Native:Node |
 | --------- | -----: | ---:   | --------: | ------: | ----------: |
 | **16 bit types (Uint16Array, Int16Array)**
-| MSVC 2015 | 32,286 |    625 |     51.7x |  12,141 |        2.7x |
-| GCC 8.1   | 31,549 | (same) |     50.5x |   1,507 |       20.9x |
-| Clang 6   | 30,238 | (same) |     48.4x |  (same) |       20.1x |
+| MSVC 2022 | 46,221 |    722 |     64.0x |  18,213 |        2.5x |
+| GCC 9.4   | 40,945 |     〃 |     56.8x |  13,720 |        2.9x |
+| Clang 15  | 47,398 |     〃 |     65.6x |      〃 |        3.5x |
 | GCC-ARM   |  2,677 |    183 |     14.6x |     297 |        9.0x |
 | **32 bits types (Uint32Array, Int32Array, Float32Array)**
-| MSVC 2015 | 12,558 |    342 |     36.7x |   5,840 |        2.2x |
-| GCC 8.1   | 12,074 | (same) |     35.3x |   2,361 |        5.1x |
-| Clang 6   | 12,587 | (same) |     36.8x |  (same) |        5.3x |
+| MSVC 2022 | 27,459 |    342 |     36.7x |   9,431 |        2.9x |
+| GCC 9.4   | 23,613 |     〃 |     61.9x |   2,842 |        8.3x |
+| Clang 15  | 29,013 |     〃 |     84.8x |      〃 |       10.2x |
 | GCC-ARM   |    670 |     94 |      7.1x |     249 |        2.7x |
 | **64 bit types (Float64Array)**
-| MSVC 2015 |  6,841 |    179 |     38.2x |   3,043 |        2.2x |
-| GCC 8.1   |  6,528 | (same) |     36.5x |   1,790 |        3.6x |
-| Clang 6   |  6,598 | (same) |     36.9x |  (same) |        3.7x |
+| MSVC 2022 |  9,005 |    179 |     38.2x |   4,348 |        2.1x |
+| GCC 9.4   |  8,774 |     〃 |     49.1x |   2,642 |        3.3x |
+| Clang 15  |  8,937 |     〃 |     49.9x |      〃 |        3.4x |
 | GCC-ARM   |    382 |     49 |      7.8x |     213 |        1.8x |
 
 There's an AVX512 implementation that is disabled by default. On the Cascade

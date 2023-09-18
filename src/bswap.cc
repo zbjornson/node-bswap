@@ -1,4 +1,4 @@
-#include "napi.h"
+#include "node_api.h"
 #include <cstdint>
 #include <cstddef>
 
@@ -40,8 +40,6 @@ static inline void swap(uint64_t* val) { *val = BSWAP_INTRINSIC_8(*val); }
 
 template<typename STYPE, class VTYPE>
 static void shuffle(STYPE* data, size_t elemLength) {
-	uint8_t* bytes = reinterpret_cast<uint8_t*>(data);
-
 	size_t elemIdx = 0;
 	constexpr size_t vectSize = VTYPE::size();
 
@@ -80,51 +78,95 @@ static void shuffle(STYPE* data, size_t elemLength) {
 }
 
 template <class VTYPE>
-void flipBytes(const Napi::CallbackInfo& info) {
+napi_value flipBytes(napi_env env, napi_callback_info info) {
 	// TODO(perf): consider this to warm up the wider registers:
 	// asm volatile("vxorps ymm0, ymm0, ymm0" : : "ymm0")
 
-	if (!info[0].IsTypedArray()) {
-		Napi::Error::New(info.Env(), "Expected typed array").ThrowAsJavaScriptException();
-		return;
+	napi_status status;
+
+	napi_value args[1];
+	size_t argc = 1;
+	status = napi_get_cb_info(env, info, &argc, args, nullptr, nullptr);
+	if (status != napi_ok) goto error;
+
+	if (argc < 1) {
+		napi_throw_error(env, NULL, "Expected typed array");
+		return nullptr;
 	}
 
-	auto arr = info[0].As<Napi::TypedArray>();
+	bool isTypedArray;
+	status = napi_is_typedarray(env, args[0], &isTypedArray);
+	if (status != napi_ok) goto error;
+	if (!isTypedArray) {
+		napi_throw_error(env, NULL, "Expected typed array");
+		return nullptr;
+	}
+
 	napi_typedarray_type type;
 	size_t elemLength;
 	void* data;
-	napi_status ok = napi_get_typedarray_info(
-		info.Env(), arr, &type, &elemLength, &data, nullptr, nullptr);
-	if (ok != napi_ok) {
-		Napi::Error::New(info.Env(), "Failed to get typed array info").ThrowAsJavaScriptException();
-		return;
-	}
+	status = napi_get_typedarray_info(env, args[0], &type, &elemLength, &data, nullptr, nullptr);
+	if (status != napi_ok) goto error;
 
 	switch (type) {
 		case napi_int16_array:
 		case napi_uint16_array:
-			return shuffle<uint16_t, VTYPE>(reinterpret_cast<uint16_t*>(data), elemLength);
+			shuffle<uint16_t, VTYPE>(reinterpret_cast<uint16_t*>(data), elemLength);
+			return nullptr;
 		case napi_int32_array:
 		case napi_uint32_array:
 		case napi_float32_array:
-			return shuffle<uint32_t, VTYPE>(reinterpret_cast<uint32_t*>(data), elemLength);
+			shuffle<uint32_t, VTYPE>(reinterpret_cast<uint32_t*>(data), elemLength);
+			return nullptr;
 		case napi_float64_array:
 #if (NAPI_VERSION > 5)
 		case napi_bigint64_array:
 		case napi_biguint64_array:
-#endif  // (NAPI_VERSION > 5)
-			return shuffle<uint64_t, VTYPE>(reinterpret_cast<uint64_t*>(data), elemLength);
+#endif // (NAPI_VERSION > 5)
+			shuffle<uint64_t, VTYPE>(reinterpret_cast<uint64_t*>(data), elemLength);
+			return nullptr;
 		case napi_int8_array:
 		case napi_uint8_array:
 		case napi_uint8_clamped_array:
 		default:
-			return;
+			return nullptr;
 	}
+
+	error:
+	const napi_extended_error_info* error_info = nullptr;
+	napi_get_last_error_info(env, &error_info);
+	const char* err_message = error_info->error_message;
+	bool is_pending;
+	napi_is_exception_pending(env, &is_pending);
+	if (!is_pending) {
+		const char* message = err_message == nullptr ? "empty error message" : err_message;
+		napi_throw_error(env, nullptr, message);
+	}
+	return nullptr;
 }
 
-Napi::Object Init(Napi::Env env, Napi::Object exports) {
-	Napi::Function fn;
-	Napi::String ise;
+#define NAPI_CALL(env, call)                                      \
+  do {                                                            \
+    napi_status status = (call);                                  \
+    if (status != napi_ok) {                                      \
+      const napi_extended_error_info* error_info = NULL;          \
+      napi_get_last_error_info((env), &error_info);               \
+      const char* err_message = error_info->error_message;        \
+      bool is_pending;                                            \
+      napi_is_exception_pending((env), &is_pending);              \
+      if (!is_pending) {                                          \
+        const char* message = (err_message == NULL)               \
+            ? "empty error message"                               \
+            : err_message;                                        \
+        napi_throw_error((env), NULL, message);                   \
+        return NULL;                                              \
+      }                                                           \
+    }                                                             \
+  } while(0)
+
+napi_value Init(napi_env env, napi_value exports) {
+	napi_value fn;
+	napi_value ise;
 
 	// MSVC doesn't have any equivalent to -march=native, but it will emit
 	// instructions from any instruction set when intrinsics are used. This lets
@@ -133,39 +175,40 @@ Napi::Object Init(Napi::Env env, Napi::Object exports) {
 #ifdef _MSC_VER
 	// Warning: Do not put the ternary outside of the New. Performance will tank.
 # ifdef BSWAP_USE_AVX512
-	fn = Napi::Function::New(env,
+	NAPI_CALL(env, napi_create_function(env, "bswap", NAPI_AUTO_LENGTH,
 		supportsAVX512BW() ? flipBytes<Vec512> :
-		supportsAVX2() ? flipBytes<Vec256> : flipBytes<Vec128>);
-	ise = Napi::String::New(env,
-		supportsAVX512BW() ? "AVX512" : supportsAVX2() ? "AVX2" : "SSSE3");
+		supportsAVX2() ? flipBytes<Vec256> : flipBytes<Vec128>, NULL, &fn));
+	NAPI_CALL(env, napi_create_string_latin1(env,
+		supportsAVX512BW() ? "AVX512" : supportsAVX2() ? "AVX2" : "SSSE3",
+		NAPI_AUTO_LENGTH, &ise));
 # else
-	fn = Napi::Function::New(env,
-		supportsAVX2() ? flipBytes<Vec256> : flipBytes<Vec128>);
-	ise = Napi::String::New(env,
-		supportsAVX2() ? "AVX2" : "SSSE3");
+	NAPI_CALL(env, napi_create_function(env, "bswap", NAPI_AUTO_LENGTH,
+		supportsAVX2() ? flipBytes<Vec256> : flipBytes<Vec128>, NULL, &fn));
+	NAPI_CALL(env, napi_create_string_latin1(env, supportsAVX2() ? "AVX2" : "SSSE3", NAPI_AUTO_LENGTH, &ise));
 # endif // BSWAP_USE_AVX512
 #else
 	// GNU-compatible compilers have -march=native, and refuse to emit
 	// instructions from an instruction set less than the -m flags allow.
 # if defined(__AVX512BW__) && defined(BSWAP_USE_AVX512)
 	// Disabled by default because it is slower than AVX2.
-	fn = Napi::Function::New(env, flipBytes<Vec512>);
-	ise = Napi::String::New(env, "AVX512");
+	NAPI_CALL(env, napi_create_function(env, "bswap", NAPI_AUTO_LENGTH, flipBytes<Vec512>, NULL, &fn));
+	NAPI_CALL(env, napi_create_string_latin1(env, "AVX512", NAPI_AUTO_LENGTH, &ise));
 # elif defined(__AVX2__)
-	fn = Napi::Function::New(env, flipBytes<Vec256>);
-	ise = Napi::String::New(env, "AVX2");
+	NAPI_CALL(env, napi_create_function(env, "bswap", NAPI_AUTO_LENGTH, flipBytes<Vec256>, NULL, &fn));
+	NAPI_CALL(env, napi_create_string_latin1(env, "AVX2", NAPI_AUTO_LENGTH, &ise));
 # elif defined(__SSSE3__)
-	fn = Napi::Function::New(env, flipBytes<Vec128>);
-	ise = Napi::String::New(env, "SSSE3");
+	NAPI_CALL(env, napi_create_function(env, "bswap", NAPI_AUTO_LENGTH, flipBytes<Vec128>, NULL, &fn));
+	NAPI_CALL(env, napi_create_string_latin1(env, "SSSE3", NAPI_AUTO_LENGTH, &ise));
 # elif defined(__ARM_NEON)
-	fn = Napi::Function::New(env, flipBytes<VecNeon>);
-	ise = Napi::String::New(env, "NEON");
+	NAPI_CALL(env, napi_create_function(env, "bswap", NAPI_AUTO_LENGTH, flipBytes<VecNeon>, NULL, &fn));
+	NAPI_CALL(env, napi_create_string_latin1(env, "NEON", NAPI_AUTO_LENGTH, &ise));
 # endif
 #endif
 
-	exports.Set(Napi::String::New(env, "bswap"), fn);
-	exports.Set(Napi::String::New(env, "ise"), ise);
+	NAPI_CALL(env, napi_set_named_property(env, exports, "bswap", fn));
+	NAPI_CALL(env, napi_set_named_property(env, exports, "ise", ise));
+
 	return exports;
 }
 
-NODE_API_MODULE(bswap, Init);
+NAPI_MODULE(bswap, Init)

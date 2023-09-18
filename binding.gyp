@@ -3,12 +3,6 @@
     {
       "target_name": "bswap",
       "sources": [ "src/bswap.cc" ],
-      "include_dirs" : [
-        "<!(node -p \"require('node-addon-api').include_dir\")"
-      ],
-      "defines": [
-          "NAPI_DISABLE_CPP_EXCEPTIONS"
-      ],
       "cflags":[
         "-fvisibility=hidden",
         "-falign-loops=32", # See readme; significant improvement for some cases
