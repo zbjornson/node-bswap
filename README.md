@@ -4,14 +4,15 @@ x86: ![x86 Build Status](https://github.com/zbjornson/node-bswap/actions/workflo
 ARM: [![ARM Build Status](https://cloud.drone.io/api/badges/zbjornson/node-bswap/status.svg)](https://cloud.drone.io/zbjornson/node-bswap)
 
 The fastest function to swap bytes (a.k.a. reverse the byte ordering, change
-endianness) of TypedArrays in-place for Node.js and browsers. Uses SIMD when
-available. Works with all of the TypedArray types, including BigUint64Array and
-BigInt64Array. Also works on Buffers if you construct a TypedArray view on the
-underlying ArrayBuffer (see below).
+endianness) of TypedArrays in-place for Node.js, Bun and browsers. Uses SIMD
+when available. Works with all of the TypedArray types, including BigUint64Array
+and BigInt64Array. Also works on Buffers if you construct a TypedArray view on
+the underlying ArrayBuffer (see below).
 
 Install:
 ```
 $ npm install bswap
+$ bun install bswap  # but see https://bun.sh/guides/install/trusted
 ```
 
 Use:
@@ -28,9 +29,9 @@ const ui32 = new Uint32Array(b.buffer, b.byteOffset, b.byteLength / Uint32Array.
 bswap(ui32);
 ```
 
-In Node.js when native code and a recent x86 or ARM processor is available, this
-library uses the fastest available SIMD instructions ([PSHUFB (SSSE3) or VPSHUFB
-(AVX2)](http://www.felixcloutier.com/x86/PSHUFB.html), [REVn
+In Node.js/Bun when native code and a recent x86 or ARM processor is available,
+this library uses the fastest available SIMD instructions ([PSHUFB (SSSE3) or
+VPSHUFB (AVX2)](http://www.felixcloutier.com/x86/PSHUFB.html), [REVn
 (NEON)](http://infocenter.arm.com/help/index.jsp?topic=/com.arm.doc.dui0489h/Cihjgdid.html)),
 which process multiple array elements simultaneously.
 

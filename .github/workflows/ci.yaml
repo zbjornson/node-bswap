@@ -2,8 +2,8 @@ name: Test
 on: [push, pull_request]
 
 jobs:
-  Test:
-    name: Test
+  Test_Nodejs:
+    name: Test Node.js
     runs-on: ${{ matrix.platform }}
     strategy:
       matrix:
@@ -18,3 +18,23 @@ jobs:
         run: npm install
       - name: Test
         run: npm test
+
+  Test_Bun:
+    name: Test Bun
+    runs-on: ${{ matrix.platform }}
+    strategy:
+      matrix:
+        bun: [latest]
+        platform: [ubuntu-latest, macos-latest]
+    steps:
+      - uses: oven-sh/setup-bun@v1
+        with:
+          bun-version: ${{ matrix.bun }}
+      - uses: actions/checkout@v3
+      - name: Install
+        run: |
+          bun install -g node-gyp
+          bun install
+          node-gyp rebuild
+      - name: Test
+        run: bun run test
