@@ -1,4 +1,5 @@
-import assert from "assert";
+import assert from "node:assert";
+import {describe, it, before} from "node:test";
 import defaultExport, * as bswap from "../node.mjs";
 let bswapFn;
 
