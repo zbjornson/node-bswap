@@ -1,6 +1,6 @@
 {
   "name": "bswap",
-  "version": "3.0.0",
+  "version": "3.0.1",
   "description": "fast byte swapping",
   "main": "node.mjs",
   "browser": "js.mjs",
